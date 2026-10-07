@@ -1,0 +1,20 @@
+# Local development: PostgreSQL for the Intake Service.
+# The password here is for local use only; production credentials never go in the repository.
+services:
+  intake-db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: intake
+      POSTGRES_USER: intake
+      POSTGRES_PASSWORD: intake
+    ports:
+      - "5432:5432"
+    volumes:
+      - intake-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U intake -d intake"]
+      interval: 5s
+      retries: 10
+
+volumes:
+  intake-db-data:
