@@ -1,5 +1,8 @@
-# Local development: PostgreSQL for the Intake Service.
-# The password here is for local use only; production credentials never go in the repository.
+# Local environment (SAD v2, section 8.1).
+#   Everything:      docker compose up -d --build   -> http://localhost:4200
+#   Database only:   docker compose up -d intake-db (when running the back-end with ./gradlew bootRun)
+# The front-end is built from the front-end repository, which must be checked out next to this one.
+# Passwords here are for local use only; production credentials never go in the repository.
 services:
   intake-db:
     image: postgres:17-alpine
@@ -15,6 +18,33 @@ services:
       test: ["CMD-SHELL", "pg_isready -U intake -d intake"]
       interval: 5s
       retries: 10
+
+  intake-service:
+    build: ./intake-service
+    environment:
+      INTAKE_DB_URL: jdbc:postgresql://intake-db:5432/intake
+      INTAKE_DB_USER: intake
+      INTAKE_DB_PASSWORD: intake
+    ports:
+      - "8080:8080"
+    depends_on:
+      intake-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health/readiness || exit 1"]
+      interval: 10s
+      start_period: 30s
+      retries: 5
+
+  frontend:
+    build: ../GP-platform-front-end
+    environment:
+      API_URL: http://intake-service:8080
+    ports:
+      - "4200:8080"
+    depends_on:
+      intake-service:
+        condition: service_healthy
 
 volumes:
   intake-db-data:
