@@ -14,6 +14,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import jakarta.validation.Valid;
+
+import nl.carebridge.intake.dto.SubmitIntakeRequest;
 import nl.carebridge.intake.model.Intake;
 import nl.carebridge.intake.security.CurrentUserResolver;
 import nl.carebridge.intake.service.IntakeService;
@@ -30,10 +33,14 @@ public class IntakeController {
 		this.currentUserResolver = currentUserResolver;
 	}
 
-	/** A patient asks the practice a question; only patients are allowed (see SecurityConfig). */
+	/**
+	 * A patient asks the practice a question; only patients are allowed (see SecurityConfig).
+	 * Missing or invalid answers are rejected with 400 before anything is stored.
+	 */
 	@PostMapping
-	public ResponseEntity<Intake> submit(@AuthenticationPrincipal Jwt token, @RequestBody Intake request) {
-		Intake intake = intakeService.submit(request.getDescription(), currentUserResolver.resolve(token));
+	public ResponseEntity<Intake> submit(@AuthenticationPrincipal Jwt token,
+			@Valid @RequestBody SubmitIntakeRequest request) {
+		Intake intake = intakeService.submit(request, currentUserResolver.resolve(token));
 		return ResponseEntity.created(URI.create("/intakes/" + intake.getId())).body(intake);
 	}
 
