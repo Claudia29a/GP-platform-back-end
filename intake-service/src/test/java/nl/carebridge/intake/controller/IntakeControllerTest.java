@@ -76,7 +76,9 @@ class IntakeControllerTest {
 				.andExpect(header().string("Location", "/intakes/" + intake.getId()))
 				.andExpect(jsonPath("$.description").value("Itchy rash on my left arm"))
 				.andExpect(jsonPath("$.complaintArea").value("SKIN"))
-				.andExpect(jsonPath("$.patientName").value("Anna de Vries"));
+				.andExpect(jsonPath("$.patientName").value("Anna de Vries"))
+				.andExpect(jsonPath("$.severityScore").doesNotExist())
+				.andExpect(jsonPath("$.queuePosition").doesNotExist());
 	}
 
 	@Test
@@ -158,6 +160,8 @@ class IntakeControllerTest {
 		intake.setComplaintArea(ComplaintArea.SKIN);
 		intake.setDuration(ComplaintDuration.ONE_TO_FOUR_WEEKS);
 		intake.setSeverity(4);
+		intake.setSeverityScore(47);
+		intake.setQueuePosition(1);
 		intake.setDescription(description);
 		intake.setStatus(Intake.Status.SUBMITTED);
 		intake.setSubmittedAt(Instant.parse("2026-10-14T09:00:00Z"));

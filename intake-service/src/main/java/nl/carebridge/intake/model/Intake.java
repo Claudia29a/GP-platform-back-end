@@ -5,6 +5,8 @@ import java.util.EnumSet;
 import java.util.Set;
 import java.util.UUID;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -79,6 +81,13 @@ public class Intake {
 
 	@Column(nullable = false, length = 1000)
 	private String description;
+
+	/** Sorting suggestion for the practice (0–100); never sent to patients. */
+	@Column(nullable = false)
+	private int severityScore;
+
+	/** Place in the practice's queue, 1 = first; null once a question leaves the queue. */
+	private Integer queuePosition;
 
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false, length = 20)
@@ -200,6 +209,25 @@ public class Intake {
 
 	public void setTreatmentTried(String treatmentTried) {
 		this.treatmentTried = treatmentTried;
+	}
+
+	/** Hidden from the question endpoints that patients use; staff get it through the queue. */
+	@JsonIgnore
+	public int getSeverityScore() {
+		return severityScore;
+	}
+
+	public void setSeverityScore(int severityScore) {
+		this.severityScore = severityScore;
+	}
+
+	@JsonIgnore
+	public Integer getQueuePosition() {
+		return queuePosition;
+	}
+
+	public void setQueuePosition(Integer queuePosition) {
+		this.queuePosition = queuePosition;
 	}
 
 	public String getDescription() {

@@ -20,14 +20,20 @@ import nl.carebridge.intake.security.CurrentUser;
 public class IntakeService {
 
 	private final IntakeRepository intakeRepository;
+	private final SeverityCalculator severityCalculator;
+	private final QueueService queueService;
 
-	public IntakeService(IntakeRepository intakeRepository) {
+	public IntakeService(IntakeRepository intakeRepository, SeverityCalculator severityCalculator,
+			QueueService queueService) {
 		this.intakeRepository = intakeRepository;
+		this.severityCalculator = severityCalculator;
+		this.queueService = queueService;
 	}
 
 	/**
-	 * Stores a validated question for the signed-in patient. Free-text answers are trimmed, and a
-	 * follow-up answer is only kept when its question applies (e.g. "which medication" only after "yes").
+	 * Stores a validated question for the signed-in patient and places it in the practice's queue by
+	 * severity score. Free-text answers are trimmed, and a follow-up answer is only kept when its
+	 * question applies (e.g. "which medication" only after "yes").
 	 */
 	@Transactional
 	public Intake submit(SubmitIntakeRequest request, CurrentUser patient) {
@@ -50,6 +56,8 @@ public class IntakeService {
 
 		intake.setStatus(Intake.Status.SUBMITTED);
 		intake.setSubmittedAt(Instant.now());
+		intake.setSeverityScore(severityCalculator.calculate(intake.getSeverity(), intake.getDuration(), intake.getSymptoms()));
+		queueService.placeByScore(intake);
 		return intakeRepository.save(intake);
 	}
 

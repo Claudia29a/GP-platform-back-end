@@ -78,6 +78,22 @@ class IntakeRepositoryTest {
 				.containsExactly(now.minusSeconds(120), now.minusSeconds(60));
 	}
 
+	@Test
+	void queueListsOpenQuestionsByPosition() {
+		Instant now = Instant.now().truncatedTo(ChronoUnit.MICROS);
+		Intake third = intake("google-anna", Set.of(), now);
+		third.setQueuePosition(3);
+		Intake first = intake("google-bob", Set.of(), now);
+		first.setQueuePosition(1);
+		Intake second = intake("google-cem", Set.of(), now);
+		second.setQueuePosition(2);
+		repository.saveAll(java.util.List.of(third, first, second));
+
+		assertThat(repository.findAllByStatusOrderByQueuePositionAscSubmittedAtAsc(Intake.Status.SUBMITTED))
+				.extracting(Intake::getPatientId)
+				.containsExactly("google-bob", "google-cem", "google-anna");
+	}
+
 	private static Intake intake(String patientId, Set<Symptom> symptoms, Instant submittedAt) {
 		Intake intake = new Intake();
 		intake.setPatientId(patientId);
