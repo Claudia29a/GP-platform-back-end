@@ -15,4 +15,7 @@ public interface IntakeRepository extends JpaRepository<Intake, UUID> {
 	List<Intake> findAllByPatientIdOrderBySubmittedAtAsc(String patientId);
 
 	Optional<Intake> findByIdAndPatientId(UUID id, String patientId);
+
+	/** The practice's queue: open questions in queue order. */
+	List<Intake> findAllByStatusOrderByQueuePositionAscSubmittedAtAsc(Intake.Status status);
 }

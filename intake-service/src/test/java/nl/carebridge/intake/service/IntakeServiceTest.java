@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
@@ -41,6 +42,12 @@ class IntakeServiceTest {
 
 	@Mock
 	private IntakeRepository intakeRepository;
+
+	@Spy
+	private SeverityCalculator severityCalculator = new SeverityCalculator();
+
+	@Mock
+	private QueueService queueService;
 
 	@InjectMocks
 	private IntakeService intakeService;
@@ -71,6 +78,14 @@ class IntakeServiceTest {
 		assertThat(intake.getStatus()).isEqualTo(Intake.Status.SUBMITTED);
 		assertThat(intake.getSubmittedAt()).isBetween(before, Instant.now());
 		verify(intakeRepository).save(intake);
+	}
+
+	@Test
+	void submitScoresTheQuestionAndPlacesItInTheQueue() {
+		Intake intake = intakeService.submit(validRequest(), PATIENT);
+
+		assertThat(intake.getSeverityScore()).isEqualTo(4 * 6 + 15 + 2 * 4);
+		verify(queueService).placeByScore(intake);
 	}
 
 	@Test
