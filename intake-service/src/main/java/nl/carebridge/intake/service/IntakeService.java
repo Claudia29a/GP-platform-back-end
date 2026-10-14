@@ -10,6 +10,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import nl.carebridge.intake.dto.SubmitIntakeRequest;
+import nl.carebridge.intake.model.ComplaintArea;
 import nl.carebridge.intake.model.Intake;
 import nl.carebridge.intake.repository.IntakeRepository;
 import nl.carebridge.intake.security.CurrentUser;
@@ -17,30 +19,35 @@ import nl.carebridge.intake.security.CurrentUser;
 @Service
 public class IntakeService {
 
-	static final int MAX_DESCRIPTION_LENGTH = 1000;
-
 	private final IntakeRepository intakeRepository;
 
 	public IntakeService(IntakeRepository intakeRepository) {
 		this.intakeRepository = intakeRepository;
 	}
 
+	/**
+	 * Stores a validated question for the signed-in patient. Free-text answers are trimmed, and a
+	 * follow-up answer is only kept when its question applies (e.g. "which medication" only after "yes").
+	 */
 	@Transactional
-	public Intake submit(String description, CurrentUser patient) {
-		if (description == null || description.isBlank()) {
-			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Description is required");
-		}
-		String trimmed = description.strip();
-		if (trimmed.length() > MAX_DESCRIPTION_LENGTH) {
-			throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-					"Description must be at most " + MAX_DESCRIPTION_LENGTH + " characters");
-		}
-
+	public Intake submit(SubmitIntakeRequest request, CurrentUser patient) {
 		Intake intake = new Intake();
 		intake.setPatientId(patient.id());
 		intake.setPatientName(patient.name());
 		intake.setPatientEmail(patient.email());
-		intake.setDescription(trimmed);
+
+		intake.setComplaintArea(request.complaintArea());
+		intake.setComplaintAreaOther(request.complaintArea() == ComplaintArea.OTHER ? clean(request.complaintAreaOther()) : null);
+		intake.setDuration(request.duration());
+		intake.setSeverity(request.severity());
+		intake.setSymptoms(request.symptoms());
+		intake.setSymptomsOther(clean(request.symptomsOther()));
+		intake.setTakesMedication(request.takesMedication());
+		intake.setCurrentMedication(request.takesMedication() ? clean(request.currentMedication()) : null);
+		intake.setTriedTreatment(request.triedTreatment());
+		intake.setTreatmentTried(request.triedTreatment() ? clean(request.treatmentTried()) : null);
+		intake.setDescription(clean(request.description()));
+
 		intake.setStatus(Intake.Status.SUBMITTED);
 		intake.setSubmittedAt(Instant.now());
 		return intakeRepository.save(intake);
@@ -62,5 +69,10 @@ public class IntakeService {
 				: intakeRepository.findByIdAndPatientId(id, user.id());
 		return intake.orElseThrow(
 				() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Intake " + id + " not found"));
+	}
+
+	/** Trims free text; an empty answer is stored as no answer. */
+	private static String clean(String value) {
+		return value == null || value.isBlank() ? null : value.strip();
 	}
 }

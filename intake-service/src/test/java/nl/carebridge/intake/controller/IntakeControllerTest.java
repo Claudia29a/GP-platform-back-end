@@ -28,6 +28,9 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.server.ResponseStatusException;
 
+import nl.carebridge.intake.TestIntakes;
+import nl.carebridge.intake.model.ComplaintArea;
+import nl.carebridge.intake.model.ComplaintDuration;
 import nl.carebridge.intake.model.Intake;
 import nl.carebridge.intake.security.CurrentUser;
 import nl.carebridge.intake.security.CurrentUserResolver;
@@ -63,15 +66,16 @@ class IntakeControllerTest {
 
 	@Test
 	void patientSubmitsQuestionAsThemselves() throws Exception {
-		Intake intake = sampleIntake("Back pain since Monday");
-		when(intakeService.submit("Back pain since Monday", PATIENT)).thenReturn(intake);
+		Intake intake = sampleIntake("Itchy rash on my left arm");
+		when(intakeService.submit(TestIntakes.validRequest(), PATIENT)).thenReturn(intake);
 
 		mockMvc.perform(post("/intakes").with(signedIn("google-anna", "Anna de Vries", "anna@example.com"))
 						.contentType(MediaType.APPLICATION_JSON)
-						.content("{\"description\": \"Back pain since Monday\"}"))
+						.content(TestIntakes.VALID_JSON))
 				.andExpect(status().isCreated())
 				.andExpect(header().string("Location", "/intakes/" + intake.getId()))
-				.andExpect(jsonPath("$.description").value("Back pain since Monday"))
+				.andExpect(jsonPath("$.description").value("Itchy rash on my left arm"))
+				.andExpect(jsonPath("$.complaintArea").value("SKIN"))
 				.andExpect(jsonPath("$.patientName").value("Anna de Vries"));
 	}
 
@@ -79,25 +83,32 @@ class IntakeControllerTest {
 	void staffCannotSubmitQuestions() throws Exception {
 		mockMvc.perform(post("/intakes").with(signedIn("google-gp", "Dr. Jansen", "gp@example.com"))
 						.contentType(MediaType.APPLICATION_JSON)
-						.content("{\"description\": \"Test\"}"))
+						.content(TestIntakes.VALID_JSON))
 				.andExpect(status().isForbidden());
 		mockMvc.perform(post("/intakes").with(signedIn("google-sam", "Sam", "assistant@example.com"))
 						.contentType(MediaType.APPLICATION_JSON)
-						.content("{\"description\": \"Test\"}"))
+						.content(TestIntakes.VALID_JSON))
 				.andExpect(status().isForbidden());
 
 		verify(intakeService, never()).submit(any(), any());
 	}
 
 	@Test
-	void invalidDescriptionReturnsBadRequest() throws Exception {
-		when(intakeService.submit("  ", PATIENT))
-				.thenThrow(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Description is required"));
-
+	void incompleteAnswersAreRejectedBeforeAnythingIsStored() throws Exception {
 		mockMvc.perform(post("/intakes").with(signedIn("google-anna", "Anna de Vries", "anna@example.com"))
 						.contentType(MediaType.APPLICATION_JSON)
-						.content("{\"description\": \"  \"}"))
+						.content(TestIntakes.VALID_JSON.replace("\"severity\": 4", "\"severity\": 11")))
 				.andExpect(status().isBadRequest());
+		mockMvc.perform(post("/intakes").with(signedIn("google-anna", "Anna de Vries", "anna@example.com"))
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(TestIntakes.VALID_JSON.replace("\"triedTreatment\": true,\n  \"treatmentTried\": \"Moisturising cream\",", "\"triedTreatment\": true,")))
+				.andExpect(status().isBadRequest());
+		mockMvc.perform(post("/intakes").with(signedIn("google-anna", "Anna de Vries", "anna@example.com"))
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(TestIntakes.VALID_JSON.replace("\"SKIN\"", "\"ELBOW\"")))
+				.andExpect(status().isBadRequest());
+
+		verify(intakeService, never()).submit(any(), any());
 	}
 
 	@Test
@@ -144,6 +155,9 @@ class IntakeControllerTest {
 		intake.setPatientId("google-anna");
 		intake.setPatientName("Anna de Vries");
 		intake.setPatientEmail("anna@example.com");
+		intake.setComplaintArea(ComplaintArea.SKIN);
+		intake.setDuration(ComplaintDuration.ONE_TO_FOUR_WEEKS);
+		intake.setSeverity(4);
 		intake.setDescription(description);
 		intake.setStatus(Intake.Status.SUBMITTED);
 		intake.setSubmittedAt(Instant.parse("2026-10-14T09:00:00Z"));

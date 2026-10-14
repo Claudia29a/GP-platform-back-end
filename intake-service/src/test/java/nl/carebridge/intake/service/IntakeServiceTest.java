@@ -1,5 +1,6 @@
 package nl.carebridge.intake.service;
 
+import static nl.carebridge.intake.TestIntakes.validRequest;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -10,8 +11,10 @@ import static org.mockito.Mockito.when;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -20,7 +23,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
+import nl.carebridge.intake.dto.SubmitIntakeRequest;
+import nl.carebridge.intake.model.ComplaintArea;
+import nl.carebridge.intake.model.ComplaintDuration;
 import nl.carebridge.intake.model.Intake;
+import nl.carebridge.intake.model.Symptom;
 import nl.carebridge.intake.repository.IntakeRepository;
 import nl.carebridge.intake.security.CurrentUser;
 import nl.carebridge.intake.security.Role;
@@ -38,44 +45,58 @@ class IntakeServiceTest {
 	@InjectMocks
 	private IntakeService intakeService;
 
+	@BeforeEach
+	void saveReturnsTheIntake() {
+		org.mockito.Mockito.lenient().when(intakeRepository.save(any(Intake.class)))
+				.thenAnswer(invocation -> invocation.getArgument(0));
+	}
+
 	@Test
-	void submitStoresTrimmedDescriptionWithThePatientAsOwner() {
-		when(intakeRepository.save(any(Intake.class))).thenAnswer(invocation -> invocation.getArgument(0));
+	void submitStoresAllAnswersWithThePatientAsOwner() {
 		Instant before = Instant.now();
 
-		Intake intake = intakeService.submit("  Back pain since Monday  ", PATIENT);
+		Intake intake = intakeService.submit(validRequest(), PATIENT);
 
-		assertThat(intake.getDescription()).isEqualTo("Back pain since Monday");
-		assertThat(intake.getStatus()).isEqualTo(Intake.Status.SUBMITTED);
-		assertThat(intake.getSubmittedAt()).isBetween(before, Instant.now());
 		assertThat(intake.getPatientId()).isEqualTo("google-anna");
 		assertThat(intake.getPatientName()).isEqualTo("Anna de Vries");
 		assertThat(intake.getPatientEmail()).isEqualTo("anna@example.com");
+		assertThat(intake.getComplaintArea()).isEqualTo(ComplaintArea.SKIN);
+		assertThat(intake.getDuration()).isEqualTo(ComplaintDuration.ONE_TO_FOUR_WEEKS);
+		assertThat(intake.getSeverity()).isEqualTo(4);
+		assertThat(intake.getSymptoms()).containsExactlyInAnyOrder(Symptom.RASH_ITCHING, Symptom.SWELLING);
+		assertThat(intake.isTakesMedication()).isFalse();
+		assertThat(intake.isTriedTreatment()).isTrue();
+		assertThat(intake.getTreatmentTried()).isEqualTo("Moisturising cream");
+		assertThat(intake.getDescription()).isEqualTo("Itchy rash on my left arm");
+		assertThat(intake.getStatus()).isEqualTo(Intake.Status.SUBMITTED);
+		assertThat(intake.getSubmittedAt()).isBetween(before, Instant.now());
 		verify(intakeRepository).save(intake);
 	}
 
 	@Test
-	void submitAcceptsDescriptionOfMaximumLength() {
-		when(intakeRepository.save(any(Intake.class))).thenAnswer(invocation -> invocation.getArgument(0));
+	void freeTextIsTrimmedAndEmptyTextIsNoAnswer() {
+		SubmitIntakeRequest request = new SubmitIntakeRequest(ComplaintArea.OTHER, "  Ears  ", ComplaintDuration.LESS_THAN_A_DAY,
+				2, Set.of(), "   ", true, " Paracetamol ", false, null, "  Ringing in my ears  ");
 
-		Intake intake = intakeService.submit("x".repeat(IntakeService.MAX_DESCRIPTION_LENGTH), PATIENT);
+		Intake intake = intakeService.submit(request, PATIENT);
 
-		assertThat(intake.getDescription()).hasSize(IntakeService.MAX_DESCRIPTION_LENGTH);
+		assertThat(intake.getComplaintAreaOther()).isEqualTo("Ears");
+		assertThat(intake.getSymptomsOther()).isNull();
+		assertThat(intake.getCurrentMedication()).isEqualTo("Paracetamol");
+		assertThat(intake.getDescription()).isEqualTo("Ringing in my ears");
 	}
 
 	@Test
-	void submitRejectsMissingDescription() {
-		assertBadRequest(() -> intakeService.submit(null, PATIENT));
-	}
+	void followUpAnswersAreOnlyKeptWhenTheyApply() {
+		SubmitIntakeRequest request = new SubmitIntakeRequest(ComplaintArea.SKIN, "Left over from OTHER",
+				ComplaintDuration.LESS_THAN_A_DAY, 2, Set.of(), null, false, "Left over from yes", false,
+				"Left over from yes", "Rash");
 
-	@Test
-	void submitRejectsBlankDescription() {
-		assertBadRequest(() -> intakeService.submit("   ", PATIENT));
-	}
+		Intake intake = intakeService.submit(request, PATIENT);
 
-	@Test
-	void submitRejectsTooLongDescription() {
-		assertBadRequest(() -> intakeService.submit("x".repeat(IntakeService.MAX_DESCRIPTION_LENGTH + 1), PATIENT));
+		assertThat(intake.getComplaintAreaOther()).isNull();
+		assertThat(intake.getCurrentMedication()).isNull();
+		assertThat(intake.getTreatmentTried()).isNull();
 	}
 
 	@Test
@@ -120,13 +141,6 @@ class IntakeServiceTest {
 		when(intakeRepository.findById(id)).thenReturn(Optional.empty());
 
 		assertNotFound(() -> intakeService.findById(id, ASSISTANT));
-	}
-
-	private void assertBadRequest(Runnable action) {
-		assertThatThrownBy(action::run)
-				.isInstanceOfSatisfying(ResponseStatusException.class,
-						ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST));
-		verify(intakeRepository, never()).save(any());
 	}
 
 	private void assertNotFound(Runnable action) {
