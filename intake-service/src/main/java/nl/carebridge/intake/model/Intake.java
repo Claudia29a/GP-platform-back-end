@@ -24,6 +24,16 @@ public class Intake {
 	@GeneratedValue(strategy = GenerationType.UUID)
 	private UUID id;
 
+	/** Google account ID of the patient who asked the question. */
+	@Column(nullable = false)
+	private String patientId;
+
+	@Column(nullable = false)
+	private String patientName;
+
+	@Column(nullable = false, length = 320)
+	private String patientEmail;
+
 	@Column(nullable = false, length = 1000)
 	private String description;
 
@@ -43,6 +53,30 @@ public class Intake {
 
 	public void setId(UUID id) {
 		this.id = id;
+	}
+
+	public String getPatientId() {
+		return patientId;
+	}
+
+	public void setPatientId(String patientId) {
+		this.patientId = patientId;
+	}
+
+	public String getPatientName() {
+		return patientName;
+	}
+
+	public void setPatientName(String patientName) {
+		this.patientName = patientName;
+	}
+
+	public String getPatientEmail() {
+		return patientEmail;
+	}
+
+	public void setPatientEmail(String patientEmail) {
+		this.patientEmail = patientEmail;
 	}
 
 	public String getDescription() {
