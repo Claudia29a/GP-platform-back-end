@@ -2,6 +2,7 @@ package nl.carebridge.intake.service;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
@@ -11,6 +12,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import nl.carebridge.intake.model.Intake;
 import nl.carebridge.intake.repository.IntakeRepository;
+import nl.carebridge.intake.security.CurrentUser;
 
 @Service
 public class IntakeService {
@@ -24,7 +26,7 @@ public class IntakeService {
 	}
 
 	@Transactional
-	public Intake submit(String description) {
+	public Intake submit(String description, CurrentUser patient) {
 		if (description == null || description.isBlank()) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Description is required");
 		}
@@ -35,20 +37,30 @@ public class IntakeService {
 		}
 
 		Intake intake = new Intake();
+		intake.setPatientId(patient.id());
+		intake.setPatientName(patient.name());
+		intake.setPatientEmail(patient.email());
 		intake.setDescription(trimmed);
 		intake.setStatus(Intake.Status.SUBMITTED);
 		intake.setSubmittedAt(Instant.now());
 		return intakeRepository.save(intake);
 	}
 
+	/** Practice staff see every question; a patient only sees their own. Oldest first. */
 	@Transactional(readOnly = true)
-	public List<Intake> findAll() {
-		return intakeRepository.findAllByOrderBySubmittedAtAsc();
+	public List<Intake> findVisibleTo(CurrentUser user) {
+		return user.isStaff()
+				? intakeRepository.findAllByOrderBySubmittedAtAsc()
+				: intakeRepository.findAllByPatientIdOrderBySubmittedAtAsc(user.id());
 	}
 
+	/** Someone else's question answers 404 for a patient, so its existence is not revealed. */
 	@Transactional(readOnly = true)
-	public Intake findById(UUID id) {
-		return intakeRepository.findById(id)
-				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Intake " + id + " not found"));
+	public Intake findById(UUID id, CurrentUser user) {
+		Optional<Intake> intake = user.isStaff()
+				? intakeRepository.findById(id)
+				: intakeRepository.findByIdAndPatientId(id, user.id());
+		return intake.orElseThrow(
+				() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Intake " + id + " not found"));
 	}
 }

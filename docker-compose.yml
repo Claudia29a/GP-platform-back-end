@@ -25,6 +25,9 @@ services:
       INTAKE_DB_URL: jdbc:postgresql://intake-db:5432/intake
       INTAKE_DB_USER: intake
       INTAKE_DB_PASSWORD: intake
+      # Staff allow-lists come from .env (not in git); see .env.example.
+      GP_EMAILS: ${GP_EMAILS:-}
+      ASSISTANT_EMAILS: ${ASSISTANT_EMAILS:-}
     ports:
       - "8080:8080"
     depends_on:

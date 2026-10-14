@@ -1,6 +1,11 @@
 package nl.carebridge.intake.controller;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -14,76 +19,134 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.JwtRequestPostProcessor;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.server.ResponseStatusException;
 
 import nl.carebridge.intake.model.Intake;
+import nl.carebridge.intake.security.CurrentUser;
+import nl.carebridge.intake.security.CurrentUserResolver;
+import nl.carebridge.intake.security.Role;
+import nl.carebridge.intake.security.SecurityConfig;
 import nl.carebridge.intake.service.IntakeService;
 
-@WebMvcTest(IntakeController.class)
+@WebMvcTest({IntakeController.class, UserController.class})
+@Import({SecurityConfig.class, CurrentUserResolver.class})
+@TestPropertySource(properties = {
+		"carebridge.security.gp-emails=gp@example.com",
+		"carebridge.security.assistant-emails=assistant@example.com"})
 class IntakeControllerTest {
+
+	private static final CurrentUser PATIENT = new CurrentUser("google-anna", "Anna de Vries", "anna@example.com", Role.PATIENT);
 
 	@Autowired
 	private MockMvc mockMvc;
+
+	@Autowired
+	private CurrentUserResolver currentUserResolver;
 
 	@MockitoBean
 	private IntakeService intakeService;
 
 	@Test
-	void submitReturnsCreatedIntakeWithLocation() throws Exception {
-		Intake intake = sampleIntake("Back pain since Monday");
-		when(intakeService.submit("Back pain since Monday")).thenReturn(intake);
+	void requestsWithoutTokenAreUnauthorized() throws Exception {
+		mockMvc.perform(get("/intakes")).andExpect(status().isUnauthorized());
+		mockMvc.perform(get("/me")).andExpect(status().isUnauthorized());
+		mockMvc.perform(post("/intakes").contentType(MediaType.APPLICATION_JSON).content("{\"description\": \"Hi\"}"))
+				.andExpect(status().isUnauthorized());
+	}
 
-		mockMvc.perform(post("/intakes")
+	@Test
+	void patientSubmitsQuestionAsThemselves() throws Exception {
+		Intake intake = sampleIntake("Back pain since Monday");
+		when(intakeService.submit("Back pain since Monday", PATIENT)).thenReturn(intake);
+
+		mockMvc.perform(post("/intakes").with(signedIn("google-anna", "Anna de Vries", "anna@example.com"))
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("{\"description\": \"Back pain since Monday\"}"))
 				.andExpect(status().isCreated())
 				.andExpect(header().string("Location", "/intakes/" + intake.getId()))
-				.andExpect(jsonPath("$.id").value(intake.getId().toString()))
 				.andExpect(jsonPath("$.description").value("Back pain since Monday"))
-				.andExpect(jsonPath("$.status").value("SUBMITTED"));
+				.andExpect(jsonPath("$.patientName").value("Anna de Vries"));
 	}
 
 	@Test
-	void submitWithInvalidDescriptionReturnsBadRequest() throws Exception {
-		when(intakeService.submit("  "))
+	void staffCannotSubmitQuestions() throws Exception {
+		mockMvc.perform(post("/intakes").with(signedIn("google-gp", "Dr. Jansen", "gp@example.com"))
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"description\": \"Test\"}"))
+				.andExpect(status().isForbidden());
+		mockMvc.perform(post("/intakes").with(signedIn("google-sam", "Sam", "assistant@example.com"))
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"description\": \"Test\"}"))
+				.andExpect(status().isForbidden());
+
+		verify(intakeService, never()).submit(any(), any());
+	}
+
+	@Test
+	void invalidDescriptionReturnsBadRequest() throws Exception {
+		when(intakeService.submit("  ", PATIENT))
 				.thenThrow(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Description is required"));
 
-		mockMvc.perform(post("/intakes")
+		mockMvc.perform(post("/intakes").with(signedIn("google-anna", "Anna de Vries", "anna@example.com"))
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("{\"description\": \"  \"}"))
 				.andExpect(status().isBadRequest());
 	}
 
 	@Test
-	void findAllReturnsIntakes() throws Exception {
-		when(intakeService.findAll()).thenReturn(List.of(sampleIntake("First"), sampleIntake("Second")));
+	void listShowsWhatTheSignedInUserMaySee() throws Exception {
+		when(intakeService.findVisibleTo(PATIENT)).thenReturn(List.of(sampleIntake("Mine")));
 
-		mockMvc.perform(get("/intakes"))
+		mockMvc.perform(get("/intakes").with(signedIn("google-anna", "Anna de Vries", "anna@example.com")))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.length()").value(2))
-				.andExpect(jsonPath("$[0].description").value("First"));
+				.andExpect(jsonPath("$.length()").value(1))
+				.andExpect(jsonPath("$[0].description").value("Mine"));
 	}
 
 	@Test
-	void findByIdOfUnknownIntakeReturnsNotFound() throws Exception {
+	void unknownQuestionReturnsNotFound() throws Exception {
 		UUID id = UUID.randomUUID();
-		when(intakeService.findById(id))
+		when(intakeService.findById(eq(id), any()))
 				.thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "Intake " + id + " not found"));
 
-		mockMvc.perform(get("/intakes/" + id))
+		mockMvc.perform(get("/intakes/" + id).with(signedIn("google-anna", "Anna de Vries", "anna@example.com")))
 				.andExpect(status().isNotFound());
+	}
+
+	@Test
+	void meReturnsNameAndRole() throws Exception {
+		mockMvc.perform(get("/me").with(signedIn("google-gp", "Dr. Jansen", "GP@example.com")))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.name").value("Dr. Jansen"))
+				.andExpect(jsonPath("$.role").value("GP"));
+		mockMvc.perform(get("/me").with(signedIn("google-sam", "Sam", "assistant@example.com")))
+				.andExpect(jsonPath("$.role").value("GP_ASSISTANT"));
+		mockMvc.perform(get("/me").with(signedIn("google-anna", "Anna de Vries", "anna@example.com")))
+				.andExpect(jsonPath("$.role").value("PATIENT"));
+	}
+
+	/** A signed-in user whose role is worked out exactly as in production. */
+	private JwtRequestPostProcessor signedIn(String id, String name, String email) {
+		return jwt().jwt(token -> token.subject(id).claim("name", name).claim("email", email))
+				.authorities(currentUserResolver::authorities);
 	}
 
 	private static Intake sampleIntake(String description) {
 		Intake intake = new Intake();
 		intake.setId(UUID.randomUUID());
+		intake.setPatientId("google-anna");
+		intake.setPatientName("Anna de Vries");
+		intake.setPatientEmail("anna@example.com");
 		intake.setDescription(description);
 		intake.setStatus(Intake.Status.SUBMITTED);
-		intake.setSubmittedAt(Instant.parse("2026-10-07T09:00:00Z"));
+		intake.setSubmittedAt(Instant.parse("2026-10-14T09:00:00Z"));
 		return intake;
 	}
 }
