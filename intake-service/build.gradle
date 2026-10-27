@@ -1,5 +1,7 @@
 plugins {
 	id 'java'
+	id 'jacoco'
+	id 'org.sonarqube' version '7.5.0.8588'
 	id 'org.springframework.boot' version '4.1.1'
 	id 'io.spring.dependency-management' version '1.1.7'
 }
@@ -39,9 +41,36 @@ dependencies {
 
 tasks.named('test') {
 	useJUnitPlatform()
+	// Every test run also writes a coverage report.
+	finalizedBy tasks.named('jacocoTestReport')
+}
+
+// Test coverage: build/reports/jacoco/test/html for people, jacocoTestReport.xml for SonarQube.
+tasks.named('jacocoTestReport') {
+	dependsOn tasks.named('test')
+	reports {
+		xml.required = true
+		html.required = true
+	}
 }
 
 
 tasks.named('jar') {
 	enabled = false
+}
+
+// SonarQube Cloud analysis ("./gradlew build sonar" in the pipeline; needs SONAR_TOKEN).
+// Coverage comes from the JaCoCo XML report written by the test run.
+sonar {
+	properties {
+		property 'sonar.host.url', 'https://sonarcloud.io'
+		property 'sonar.organization', 'claudia29a'
+		property 'sonar.projectKey', 'Claudia29a_GP-platform-back-end'
+		property 'sonar.projectName', 'CareBridge Intake Service'
+		property 'sonar.coverage.jacoco.xmlReportPaths', 'build/reports/jacoco/test/jacocoTestReport.xml'
+		// The start-up class only calls SpringApplication.run.
+		property 'sonar.coverage.exclusions', '**/IntakeServiceApplication.java'
+		// Fail the pipeline when the quality gate fails, so a failing change is never deployed.
+		property 'sonar.qualitygate.wait', 'true'
+	}
 }
