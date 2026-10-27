@@ -59,7 +59,7 @@ tasks.named('jar') {
 	enabled = false
 }
 
-// SonarQube Cloud analysis ("./gradlew build sonar" in the pipeline; needs SONAR_TOKEN).
+// SonarQube Cloud analysis ("./gradlew sonar" in the pipeline after the tests; needs SONAR_TOKEN).
 // Coverage comes from the JaCoCo XML report written by the test run.
 sonar {
 	properties {
