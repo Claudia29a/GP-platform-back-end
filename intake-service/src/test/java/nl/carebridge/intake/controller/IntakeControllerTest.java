@@ -147,7 +147,7 @@ class IntakeControllerTest {
 
 	/** A signed-in user whose role is worked out exactly as in production. */
 	private JwtRequestPostProcessor signedIn(String id, String name, String email) {
-		return jwt().jwt(token -> token.subject(id).claim("name", name).claim("email", email))
+		return jwt().jwt(token -> token.subject(id).claim("name", name).claim("email", email).claim("email_verified", true))
 				.authorities(currentUserResolver::authorities);
 	}
 

@@ -1,0 +1,74 @@
+plugins {
+	id 'java'
+	id 'jacoco'
+	id 'org.sonarqube' version '7.5.0.8588'
+	id 'org.springframework.boot' version '4.1.1'
+	id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'nl.carebridge'
+version = '0.0.1-SNAPSHOT'
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(21)
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+	implementation 'org.springframework.boot:spring-boot-starter-validation'
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+	implementation 'org.springframework.boot:spring-boot-starter-flyway'
+	// BCrypt password hashing and signing our own tokens (JWT); no login filter chain is needed here.
+	implementation 'org.springframework.security:spring-security-crypto'
+	implementation 'org.springframework.security:spring-security-oauth2-jose'
+	implementation 'org.flywaydb:flyway-database-postgresql'
+	runtimeOnly 'org.postgresql:postgresql'
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+	testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa-test'
+	testImplementation 'org.springframework.boot:spring-boot-testcontainers'
+	testImplementation 'org.testcontainers:testcontainers-junit-jupiter'
+	testImplementation 'org.testcontainers:testcontainers-postgresql'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+	// Every test run also writes a coverage report.
+	finalizedBy tasks.named('jacocoTestReport')
+}
+
+// Test coverage: build/reports/jacoco/test/html for people, jacocoTestReport.xml for SonarQube.
+tasks.named('jacocoTestReport') {
+	dependsOn tasks.named('test')
+	reports {
+		xml.required = true
+		html.required = true
+	}
+}
+
+tasks.named('jar') {
+	enabled = false
+}
+
+// SonarQube Cloud analysis ("./gradlew sonar" in the pipeline after the tests; needs SONAR_TOKEN).
+sonar {
+	properties {
+		property 'sonar.host.url', 'https://sonarcloud.io'
+		property 'sonar.organization', 'claudia29a'
+		property 'sonar.projectKey', 'Claudia29a_GP-platform-back-end_account-service'
+		property 'sonar.projectName', 'CareBridge Account Service'
+		property 'sonar.coverage.jacoco.xmlReportPaths', 'build/reports/jacoco/test/jacocoTestReport.xml'
+		// The start-up class only calls SpringApplication.run.
+		property 'sonar.coverage.exclusions', '**/AccountServiceApplication.java'
+		// Fail the pipeline when the quality gate fails, so a failing change is never deployed.
+		property 'sonar.qualitygate.wait', 'true'
+	}
+}
