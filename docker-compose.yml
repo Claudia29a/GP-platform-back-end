@@ -1,6 +1,6 @@
 # Local environment (SAD v2, section 8.1).
 #   Everything:      docker compose up -d --build   -> http://localhost:4200
-#   Database only:   docker compose up -d intake-db (when running the back-end with ./gradlew bootRun)
+#   Databases only:  docker compose up -d intake-db account-db (when running the services with ./gradlew bootRun)
 # The front-end is built from the front-end repository, which must be checked out next to this one.
 # Passwords here are for local use only; production credentials never go in the repository.
 services:
@@ -19,6 +19,40 @@ services:
       interval: 5s
       retries: 10
 
+  account-db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: account
+      POSTGRES_USER: account
+      POSTGRES_PASSWORD: account
+    ports:
+      - "5433:5432"
+    volumes:
+      - account-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U account -d account"]
+      interval: 5s
+      retries: 10
+
+  account-service:
+    build: ./account-service
+    environment:
+      ACCOUNT_DB_URL: jdbc:postgresql://account-db:5432/account
+      ACCOUNT_DB_USER: account
+      ACCOUNT_DB_PASSWORD: account
+      # Local only: without a key the service makes a temporary one, so a restart signs everyone out.
+      ACCOUNT_TOKEN_PRIVATE_KEY: ${ACCOUNT_TOKEN_PRIVATE_KEY:-}
+    ports:
+      - "8081:8080"
+    depends_on:
+      account-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health/readiness || exit 1"]
+      interval: 10s
+      start_period: 30s
+      retries: 5
+
   intake-service:
     build: ./intake-service
     environment:
@@ -28,10 +62,14 @@ services:
       # Staff allow-lists come from .env (not in git); see .env.example.
       GP_EMAILS: ${GP_EMAILS:-}
       ASSISTANT_EMAILS: ${ASSISTANT_EMAILS:-}
+      # Public key of the Account Service, to check its tokens (ADR-010).
+      ACCOUNT_JWKS_URI: http://account-service:8080/.well-known/jwks.json
     ports:
       - "8080:8080"
     depends_on:
       intake-db:
+        condition: service_healthy
+      account-service:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health/readiness || exit 1"]
@@ -43,6 +81,7 @@ services:
     build: ../GP-platform-front-end
     environment:
       API_URL: http://intake-service:8080
+      ACCOUNT_API_URL: http://account-service:8080
     ports:
       - "4200:8080"
     depends_on:
@@ -51,3 +90,4 @@ services:
 
 volumes:
   intake-db-data:
+  account-db-data:

@@ -1,0 +1,95 @@
+# Account Service pipeline (SAD v2, section 8.2).
+# Every push and pull request: build and test. Pull requests into main and pushes to main also get the
+# SonarQube Cloud analysis and its quality gate (the Free plan analyses nothing else).
+# Push to main: build the image, push it to GHCR and deploy to Azure.
+# Actions are pinned to a full commit SHA (the version is in the comment), so a moved tag cannot change what runs.
+name: account-service
+
+on:
+  push:
+    paths:
+      - 'account-service/**'
+      - '.github/workflows/account-service.yml'
+  pull_request:
+    paths:
+      - 'account-service/**'
+      - '.github/workflows/account-service.yml'
+  workflow_dispatch:
+
+env:
+  IMAGE: ghcr.io/claudia29a/carebridge-account-service
+  CONTAINER_APP: account-service
+  RESOURCE_GROUP: rg-carebridge
+  # Identifiers of the deploy identity, not secrets. Login works without a password via OpenID Connect.
+  AZURE_CLIENT_ID: 3897f62c-d4d1-4fbb-ade8-c6925809928e
+  AZURE_TENANT_ID: c66b6765-b794-4a2b-84ed-845b341c086a
+  AZURE_SUBSCRIPTION_ID: abe892ae-8030-495a-9ed4-6a09ed339e6a
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: account-service
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # SonarQube Cloud needs the full history to tell new code from old code.
+          fetch-depth: 0
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+      - name: Build and test
+        run: ./gradlew build --console=plain
+      # The Free plan of SonarQube Cloud analyses only main and pull requests into main,
+      # so pushes to other branches run the tests but skip the analysis.
+      - name: SonarQube Cloud analysis
+        if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+        run: ./gradlew sonar --console=plain
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  deploy:
+    needs: build-and-test
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: account-service
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:${{ github.sha }}
+            ${{ env.IMAGE }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ env.AZURE_CLIENT_ID }}
+          tenant-id: ${{ env.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+      - name: Deploy to Azure Container Apps
+        run: |
+          az extension add --name containerapp --upgrade --allow-preview true --only-show-errors
+          if ! az containerapp show -n "$CONTAINER_APP" -g "$RESOURCE_GROUP" -o none 2>/dev/null; then
+            echo "::notice::Container app $CONTAINER_APP does not exist yet; image pushed, deploy skipped."
+            exit 0
+          fi
+          az containerapp update -n "$CONTAINER_APP" -g "$RESOURCE_GROUP" \
+            --image "$IMAGE:${{ github.sha }}" -o none
+          echo "Deployed $IMAGE:${{ github.sha }}"

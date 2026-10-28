@@ -112,7 +112,7 @@ class QueueControllerTest {
 	}
 
 	private JwtRequestPostProcessor signedIn(String email) {
-		return jwt().jwt(token -> token.subject("google-" + email).claim("name", email).claim("email", email))
+		return jwt().jwt(token -> token.subject("google-" + email).claim("name", email).claim("email", email).claim("email_verified", true))
 				.authorities(currentUserResolver::authorities);
 	}
 

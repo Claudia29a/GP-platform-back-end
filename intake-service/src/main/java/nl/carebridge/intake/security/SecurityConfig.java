@@ -1,5 +1,7 @@
 package nl.carebridge.intake.security;
 
+import java.util.Map;
+
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -12,7 +14,8 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 import org.springframework.security.web.SecurityFilterChain;
 
 /**
- * Every request except the health checks needs a valid Google ID token (ADR-006).
+ * Every request except the health checks needs a valid token: from Google (ADR-006) or from the
+ * CareBridge Account Service (ADR-010).
  */
 @Configuration
 @EnableConfigurationProperties(SecurityProperties.class)
@@ -38,10 +41,21 @@ public class SecurityConfig {
 				.build();
 	}
 
+	/**
+	 * Two kinds of sign-in, one decoder: a Google ID token (ADR-006) or a token from the CareBridge
+	 * Account Service (ADR-010). Each is checked with its own issuer's public keys and rules.
+	 */
 	@Bean
 	JwtDecoder jwtDecoder(SecurityProperties properties) {
-		NimbusJwtDecoder decoder = NimbusJwtDecoder.withJwkSetUri(GOOGLE_JWK_SET_URI).build();
-		decoder.setJwtValidator(GoogleTokenValidators.forClient(properties.googleClientId()));
-		return decoder;
+		NimbusJwtDecoder google = NimbusJwtDecoder.withJwkSetUri(GOOGLE_JWK_SET_URI).build();
+		google.setJwtValidator(GoogleTokenValidators.forClient(properties.googleClientId()));
+
+		NimbusJwtDecoder account = NimbusJwtDecoder.withJwkSetUri(properties.accountJwkSetUri()).build();
+		account.setJwtValidator(AccountTokenValidators.forIssuer(properties.accountIssuer()));
+
+		return new IssuerRoutingJwtDecoder(Map.of(
+				"https://accounts.google.com", google,
+				"accounts.google.com", google,
+				properties.accountIssuer(), account));
 	}
 }
