@@ -5,8 +5,6 @@ import java.util.EnumSet;
 import java.util.Set;
 import java.util.UUID;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -24,7 +22,7 @@ import jakarta.persistence.Table;
 public class Intake {
 
 	public enum Status {
-		SUBMITTED
+		IN_REVIEW
 	}
 
 	@Id
@@ -88,6 +86,10 @@ public class Intake {
 
 	/** Place in the practice's queue, 1 = first; null once a question leaves the queue. */
 	private Integer queuePosition;
+
+	/** True when staff put this question above a more severe one; new questions stay below it. */
+	@Column(nullable = false)
+	private boolean movedByHand;
 
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false, length = 20)
@@ -211,8 +213,6 @@ public class Intake {
 		this.treatmentTried = treatmentTried;
 	}
 
-	/** Hidden from the question endpoints that patients use; staff get it through the queue. */
-	@JsonIgnore
 	public int getSeverityScore() {
 		return severityScore;
 	}
@@ -221,13 +221,20 @@ public class Intake {
 		this.severityScore = severityScore;
 	}
 
-	@JsonIgnore
 	public Integer getQueuePosition() {
 		return queuePosition;
 	}
 
 	public void setQueuePosition(Integer queuePosition) {
 		this.queuePosition = queuePosition;
+	}
+
+	public boolean isMovedByHand() {
+		return movedByHand;
+	}
+
+	public void setMovedByHand(boolean movedByHand) {
+		this.movedByHand = movedByHand;
 	}
 
 	public String getDescription() {

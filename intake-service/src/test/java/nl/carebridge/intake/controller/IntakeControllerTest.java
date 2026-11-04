@@ -116,6 +116,43 @@ class IntakeControllerTest {
 	}
 
 	@Test
+	void invalidAnswersGetAnErrorForEachField() throws Exception {
+		mockMvc.perform(post("/intakes").with(signedIn("google-anna", "Anna de Vries", "anna@example.com"))
+						.contentType(MediaType.APPLICATION_JSON).content("{\"severity\": 11}"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.errors.complaintArea").exists())
+				.andExpect(jsonPath("$.errors.duration").exists())
+				.andExpect(jsonPath("$.errors.severity").exists())
+				.andExpect(jsonPath("$.errors.description").exists());
+	}
+
+	@Test
+	void aConditionalRuleIsReportedOnItsField() throws Exception {
+		mockMvc.perform(post("/intakes").with(signedIn("google-anna", "Anna de Vries", "anna@example.com"))
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(TestIntakes.VALID_JSON.replace("\"takesMedication\": false", "\"takesMedication\": true")))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.errors.currentMedication").value("say which medication or treatment you take"));
+	}
+
+	@Test
+	void anOptionThatDoesNotExistIsReportedOnItsField() throws Exception {
+		mockMvc.perform(post("/intakes").with(signedIn("google-anna", "Anna de Vries", "anna@example.com"))
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(TestIntakes.VALID_JSON.replace("\"SKIN\"", "\"ELBOW\"")))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.errors.complaintArea").value("is not a valid value"));
+	}
+
+	@Test
+	void aBodyThatIsNotJsonGetsAClearAnswer() throws Exception {
+		mockMvc.perform(post("/intakes").with(signedIn("google-anna", "Anna de Vries", "anna@example.com"))
+						.contentType(MediaType.APPLICATION_JSON).content("not json"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.message").value("The request could not be read"));
+	}
+
+	@Test
 	void listShowsWhatTheSignedInUserMaySee() throws Exception {
 		when(intakeService.findVisibleTo(PATIENT)).thenReturn(List.of(sampleIntake("Mine")));
 
@@ -165,7 +202,7 @@ class IntakeControllerTest {
 		intake.setSeverityScore(47);
 		intake.setQueuePosition(1);
 		intake.setDescription(description);
-		intake.setStatus(Intake.Status.SUBMITTED);
+		intake.setStatus(Intake.Status.IN_REVIEW);
 		intake.setSubmittedAt(Instant.parse("2026-10-14T09:00:00Z"));
 		return intake;
 	}

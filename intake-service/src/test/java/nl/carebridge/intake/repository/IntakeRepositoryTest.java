@@ -91,7 +91,7 @@ class IntakeRepositoryTest {
 		second.setQueuePosition(2);
 		repository.saveAll(java.util.List.of(third, first, second));
 
-		assertThat(repository.findAllByStatusOrderByQueuePositionAscSubmittedAtAsc(Intake.Status.SUBMITTED))
+		assertThat(repository.findAllByStatusOrderByQueuePositionAscSubmittedAtAsc(Intake.Status.IN_REVIEW))
 				.extracting(Intake::getPatientId)
 				.containsExactly("google-bob", "google-cem", "google-anna");
 	}
@@ -109,7 +109,7 @@ class IntakeRepositoryTest {
 		intake.setCurrentMedication("Inhaler");
 		intake.setTriedTreatment(false);
 		intake.setDescription("Coughing at night");
-		intake.setStatus(Intake.Status.SUBMITTED);
+		intake.setStatus(Intake.Status.IN_REVIEW);
 		intake.setSubmittedAt(submittedAt.truncatedTo(ChronoUnit.MICROS));
 		return intake;
 	}

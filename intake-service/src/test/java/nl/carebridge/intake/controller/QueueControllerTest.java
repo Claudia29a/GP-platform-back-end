@@ -128,7 +128,7 @@ class QueueControllerTest {
 		intake.setSeverityScore(score);
 		intake.setQueuePosition(position);
 		intake.setDescription("Itchy rash");
-		intake.setStatus(Intake.Status.SUBMITTED);
+		intake.setStatus(Intake.Status.IN_REVIEW);
 		intake.setSubmittedAt(Instant.parse("2026-10-14T09:00:00Z"));
 		return intake;
 	}

@@ -77,7 +77,7 @@ class IntakeServiceTest {
 		assertThat(intake.isTriedTreatment()).isTrue();
 		assertThat(intake.getTreatmentTried()).isEqualTo("Moisturising cream");
 		assertThat(intake.getDescription()).isEqualTo("Itchy rash on my left arm");
-		assertThat(intake.getStatus()).isEqualTo(Intake.Status.SUBMITTED);
+		assertThat(intake.getStatus()).isEqualTo(Intake.Status.IN_REVIEW);
 		assertThat(intake.getSubmittedAt()).isBetween(before, Instant.now());
 		verify(intakeRepository).save(intake);
 	}

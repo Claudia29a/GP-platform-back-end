@@ -34,18 +34,19 @@ public record SubmitIntakeRequest(
 		symptoms = symptoms == null ? Set.of() : symptoms;
 	}
 
+	// The checks below are named after their field, so a broken rule is reported on that field.
 	@AssertTrue(message = "describe where the problem is")
-	boolean isComplaintAreaOtherGiven() {
+	boolean isComplaintAreaOther() {
 		return complaintArea != ComplaintArea.OTHER || hasText(complaintAreaOther);
 	}
 
 	@AssertTrue(message = "say which medication or treatment you take")
-	boolean isCurrentMedicationGiven() {
+	boolean isCurrentMedication() {
 		return !Boolean.TRUE.equals(takesMedication) || hasText(currentMedication);
 	}
 
 	@AssertTrue(message = "say what you already tried")
-	boolean isTreatmentTriedGiven() {
+	boolean isTreatmentTried() {
 		return !Boolean.TRUE.equals(triedTreatment) || hasText(treatmentTried);
 	}
 

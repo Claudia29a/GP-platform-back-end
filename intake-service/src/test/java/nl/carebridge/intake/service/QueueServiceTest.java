@@ -2,6 +2,9 @@ package nl.carebridge.intake.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
@@ -71,8 +74,7 @@ class QueueServiceTest {
 
 	@Test
 	void newQuestionIsPlacedByScoreEvenAfterManualReordering() {
-		// Staff moved the low-scoring question to the top.
-		Intake movedUp = queued(1, 20);
+		Intake movedUp = movedByHand(queued(1, 20));
 		Intake high = queued(2, 90);
 		Intake middle = queued(3, 40);
 		givenQueue(movedUp, high, middle);
@@ -84,15 +86,63 @@ class QueueServiceTest {
 	}
 
 	@Test
-	void mostSevereNewQuestionGoesToTheTop() {
-		Intake movedUp = queued(1, 20);
+	void theMostSevereQuestionGoesToTheTopOfAnUntouchedQueue() {
+		Intake a = queued(1, 40);
+		Intake b = queued(2, 20);
+		givenQueue(a, b);
+		Intake added = withScore(95);
+
+		queueService.placeByScore(added);
+
+		assertPositions(added, 1, a, 2, b, 3);
+	}
+
+	@Test
+	void evenTheMostSevereQuestionStaysBelowAQuestionStaffMovedUp() {
+		Intake movedUp = movedByHand(queued(1, 20));
 		Intake other = queued(2, 40);
 		givenQueue(movedUp, other);
 		Intake added = withScore(95);
 
 		queueService.placeByScore(added);
 
-		assertPositions(added, 1, movedUp, 2, other, 3);
+		assertPositions(movedUp, 1, added, 2, other, 3);
+	}
+
+	@Test
+	void aQuestionPutAboveAMoreSevereOneIsMarkedAsMovedByHand() {
+		Intake high = queued(1, 80);
+		Intake low = queued(2, 20);
+		Intake middle = queued(3, 50);
+		givenQueue(high, low, middle);
+
+		queueService.reorder(List.of(low.getId(), high.getId(), middle.getId()));
+
+		assertThat(low.isMovedByHand()).isTrue();
+		assertThat(high.isMovedByHand()).isFalse();
+		assertThat(middle.isMovedByHand()).isFalse();
+	}
+
+	@Test
+	void puttingTheQueueBackInScoreOrderClearsTheMark() {
+		Intake low = movedByHand(queued(1, 20));
+		Intake high = queued(2, 80);
+		givenQueue(low, high);
+
+		queueService.reorder(List.of(high.getId(), low.getId()));
+
+		assertThat(low.isMovedByHand()).isFalse();
+	}
+
+	@Test
+	void everyChangeTakesTheQueueLockFirst() {
+		Intake a = queued(1, 80);
+		givenQueue(a);
+
+		queueService.placeByScore(withScore(10));
+		queueService.reorder(List.of(a.getId()));
+
+		verify(intakeRepository, times(2)).lockQueue(anyLong());
 	}
 
 	@Test
@@ -127,7 +177,7 @@ class QueueServiceTest {
 	}
 
 	private void givenQueue(Intake... intakes) {
-		when(intakeRepository.findAllByStatusOrderByQueuePositionAscSubmittedAtAsc(Intake.Status.SUBMITTED))
+		when(intakeRepository.findAllByStatusOrderByQueuePositionAscSubmittedAtAsc(Intake.Status.IN_REVIEW))
 				.thenReturn(new ArrayList<>(Arrays.asList(intakes)));
 	}
 
@@ -138,10 +188,15 @@ class QueueServiceTest {
 		return intake;
 	}
 
+	private static Intake movedByHand(Intake intake) {
+		intake.setMovedByHand(true);
+		return intake;
+	}
+
 	private static Intake withScore(int score) {
 		Intake intake = new Intake();
 		intake.setSeverityScore(score);
-		intake.setStatus(Intake.Status.SUBMITTED);
+		intake.setStatus(Intake.Status.IN_REVIEW);
 		return intake;
 	}
 

@@ -54,7 +54,7 @@ public class IntakeService {
 		intake.setTreatmentTried(request.triedTreatment() ? clean(request.treatmentTried()) : null);
 		intake.setDescription(clean(request.description()));
 
-		intake.setStatus(Intake.Status.SUBMITTED);
+		intake.setStatus(Intake.Status.IN_REVIEW);
 		intake.setSubmittedAt(Instant.now());
 		intake.setSeverityScore(severityCalculator.calculate(intake.getSeverity(), intake.getDuration(), intake.getSymptoms()));
 		queueService.placeByScore(intake);
