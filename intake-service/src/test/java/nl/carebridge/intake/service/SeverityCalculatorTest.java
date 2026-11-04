@@ -5,11 +5,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.util.EnumSet;
 import java.util.Set;
 
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import nl.carebridge.intake.model.ComplaintDuration;
 import nl.carebridge.intake.model.Symptom;
 
+@Tag("unit")
 class SeverityCalculatorTest {
 
 	private final SeverityCalculator calculator = new SeverityCalculator();

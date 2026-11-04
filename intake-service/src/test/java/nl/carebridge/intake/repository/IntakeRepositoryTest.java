@@ -7,6 +7,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.EnumSet;
 import java.util.Set;
 
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
@@ -29,6 +30,7 @@ import nl.carebridge.intake.model.Symptom;
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Testcontainers
+@Tag("integration")
 class IntakeRepositoryTest {
 
 	@Container

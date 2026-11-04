@@ -9,6 +9,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -21,6 +22,7 @@ import nl.carebridge.intake.model.Intake;
 import nl.carebridge.intake.repository.IntakeRepository;
 
 @ExtendWith(MockitoExtension.class)
+@Tag("unit")
 class QueueServiceTest {
 
 	@Mock

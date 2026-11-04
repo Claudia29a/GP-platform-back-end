@@ -14,6 +14,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -38,6 +39,7 @@ import nl.carebridge.intake.service.QueueService;
 @TestPropertySource(properties = {
 		"carebridge.security.gp-emails=gp@example.com",
 		"carebridge.security.assistant-emails=assistant@example.com"})
+@Tag("api")
 class QueueControllerTest {
 
 	@Autowired

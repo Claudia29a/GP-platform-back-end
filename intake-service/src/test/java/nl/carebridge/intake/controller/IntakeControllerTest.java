@@ -16,6 +16,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -43,6 +44,7 @@ import nl.carebridge.intake.service.IntakeService;
 @TestPropertySource(properties = {
 		"carebridge.security.gp-emails=gp@example.com",
 		"carebridge.security.assistant-emails=assistant@example.com"})
+@Tag("api")
 class IntakeControllerTest {
 
 	private static final CurrentUser PATIENT = new CurrentUser("google-anna", "Anna de Vries", "anna@example.com", Role.PATIENT);

@@ -6,10 +6,12 @@ import java.time.Instant;
 import java.util.List;
 import java.util.function.Consumer;
 
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.oauth2.core.OAuth2TokenValidator;
 import org.springframework.security.oauth2.jwt.Jwt;
 
+@Tag("unit")
 class GoogleTokenValidatorsTest {
 
 	private static final String CLIENT_ID = "carebridge.apps.googleusercontent.com";

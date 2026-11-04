@@ -15,6 +15,7 @@ import java.time.ZoneOffset;
 import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -33,6 +34,7 @@ import nl.carebridge.account.model.Account;
 import nl.carebridge.account.repository.AccountRepository;
 
 @ExtendWith(MockitoExtension.class)
+@Tag("unit")
 class AccountServiceTest {
 
 	private static final Instant NOW = Instant.parse("2026-10-28T10:00:00Z");

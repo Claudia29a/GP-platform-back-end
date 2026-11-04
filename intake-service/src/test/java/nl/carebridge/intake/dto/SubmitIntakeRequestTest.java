@@ -8,6 +8,7 @@ import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import jakarta.validation.ConstraintViolation;
@@ -17,6 +18,7 @@ import jakarta.validation.ValidatorFactory;
 
 import nl.carebridge.intake.model.ComplaintArea;
 
+@Tag("unit")
 class SubmitIntakeRequestTest {
 
 	private static ValidatorFactory factory;

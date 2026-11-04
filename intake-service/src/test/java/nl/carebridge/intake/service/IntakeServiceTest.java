@@ -15,6 +15,7 @@ import java.util.Set;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -34,6 +35,7 @@ import nl.carebridge.intake.security.CurrentUser;
 import nl.carebridge.intake.security.Role;
 
 @ExtendWith(MockitoExtension.class)
+@Tag("unit")
 class IntakeServiceTest {
 
 	private static final CurrentUser PATIENT = new CurrentUser("google-anna", "Anna de Vries", "anna@example.com", Role.PATIENT);

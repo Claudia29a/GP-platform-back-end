@@ -6,10 +6,12 @@ import java.time.Instant;
 import java.util.List;
 import java.util.function.Consumer;
 
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.oauth2.core.OAuth2TokenValidator;
 import org.springframework.security.oauth2.jwt.Jwt;
 
+@Tag("unit")
 class AccountTokenValidatorsTest {
 
 	private final OAuth2TokenValidator<Jwt> validator = AccountTokenValidators.forIssuer("carebridge-account-service");
