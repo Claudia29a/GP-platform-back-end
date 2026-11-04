@@ -1,5 +1,5 @@
 # Stage 1: build the executable jar.
-FROM eclipse-temurin:21-jdk-alpine AS build
+FROM eclipse-temurin:25-jdk-alpine AS build
 WORKDIR /workspace
 
 # Download dependencies first, so this layer is cached until build.gradle changes.
@@ -12,7 +12,7 @@ COPY src src
 RUN ./gradlew bootJar --no-daemon -x test
 
 # Stage 2: only the Java runtime and the jar.
-FROM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:25-jre-alpine
 # The base image can lag behind Alpine's security fixes.
 RUN apk upgrade --no-cache && addgroup -S app && adduser -S app -G app
 USER app
