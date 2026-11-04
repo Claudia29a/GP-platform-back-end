@@ -7,16 +7,19 @@ import java.time.temporal.ChronoUnit;
 import java.util.EnumSet;
 import java.util.Set;
 
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
 import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.context.annotation.Import;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
+import nl.carebridge.intake.encryption.EncryptionTestConfig;
 import nl.carebridge.intake.model.ComplaintArea;
 import nl.carebridge.intake.model.ComplaintDuration;
 import nl.carebridge.intake.model.Intake;
@@ -29,6 +32,8 @@ import nl.carebridge.intake.model.Symptom;
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Testcontainers
+@Import(EncryptionTestConfig.class)
+@Tag("integration")
 class IntakeRepositoryTest {
 
 	@Container
@@ -54,6 +59,20 @@ class IntakeRepositoryTest {
 		assertThat(loaded.getSeverity()).isEqualTo(6);
 		assertThat(loaded.isTakesMedication()).isTrue();
 		assertThat(loaded.getCurrentMedication()).isEqualTo("Inhaler");
+	}
+
+	@Test
+	void anyoneReadingTheDatabaseDirectlySeesNoAnswersOrNames() {
+		Intake saved = repository.save(intake("google-anna", Set.of(Symptom.FEVER), Instant.now()));
+		entityManager.flush();
+
+		Object[] row = (Object[]) entityManager.getEntityManager().createNativeQuery("""
+				SELECT patient_name, patient_email, complaint_area, duration, severity, symptoms, takes_medication,
+				    current_medication, tried_treatment, description
+				FROM intake WHERE id = :id""").setParameter("id", saved.getId()).getSingleResult();
+
+		assertThat(row).doesNotContainNull().allSatisfy(column -> assertThat(column.toString())
+				.doesNotContain("anna", "CHEST", "FOUR_TO", "FEVER", "Inhaler", "true").hasSizeGreaterThan(20));
 	}
 
 	@Test
@@ -89,7 +108,7 @@ class IntakeRepositoryTest {
 		second.setQueuePosition(2);
 		repository.saveAll(java.util.List.of(third, first, second));
 
-		assertThat(repository.findAllByStatusOrderByQueuePositionAscSubmittedAtAsc(Intake.Status.SUBMITTED))
+		assertThat(repository.findAllByStatusOrderByQueuePositionAscSubmittedAtAsc(Intake.Status.IN_REVIEW))
 				.extracting(Intake::getPatientId)
 				.containsExactly("google-bob", "google-cem", "google-anna");
 	}
@@ -107,7 +126,7 @@ class IntakeRepositoryTest {
 		intake.setCurrentMedication("Inhaler");
 		intake.setTriedTreatment(false);
 		intake.setDescription("Coughing at night");
-		intake.setStatus(Intake.Status.SUBMITTED);
+		intake.setStatus(Intake.Status.IN_REVIEW);
 		intake.setSubmittedAt(submittedAt.truncatedTo(ChronoUnit.MICROS));
 		return intake;
 	}

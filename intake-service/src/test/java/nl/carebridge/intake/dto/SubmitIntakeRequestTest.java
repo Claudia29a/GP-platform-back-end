@@ -8,6 +8,7 @@ import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import jakarta.validation.ConstraintViolation;
@@ -17,6 +18,7 @@ import jakarta.validation.ValidatorFactory;
 
 import nl.carebridge.intake.model.ComplaintArea;
 
+@Tag("unit")
 class SubmitIntakeRequestTest {
 
 	private static ValidatorFactory factory;
@@ -64,7 +66,7 @@ class SubmitIntakeRequestTest {
 				r.symptoms(), r.symptomsOther(), r.takesMedication(), r.currentMedication(), r.triedTreatment(),
 				r.treatmentTried(), r.description());
 
-		assertThat(invalidFields(withoutText)).containsExactly("complaintAreaOtherGiven");
+		assertThat(invalidFields(withoutText)).containsExactly("complaintAreaOther");
 		assertThat(invalidFields(withText)).isEmpty();
 	}
 
@@ -76,7 +78,7 @@ class SubmitIntakeRequestTest {
 		SubmitIntakeRequest yesWith = new SubmitIntakeRequest(r.complaintArea(), null, r.duration(), r.severity(),
 				r.symptoms(), null, true, "Paracetamol", r.triedTreatment(), r.treatmentTried(), r.description());
 
-		assertThat(invalidFields(yesWithout)).containsExactly("currentMedicationGiven");
+		assertThat(invalidFields(yesWithout)).containsExactly("currentMedication");
 		assertThat(invalidFields(yesWith)).isEmpty();
 	}
 
@@ -86,7 +88,7 @@ class SubmitIntakeRequestTest {
 		SubmitIntakeRequest yesWithout = new SubmitIntakeRequest(r.complaintArea(), null, r.duration(), r.severity(),
 				r.symptoms(), null, false, null, true, null, r.description());
 
-		assertThat(invalidFields(yesWithout)).containsExactly("treatmentTriedGiven");
+		assertThat(invalidFields(yesWithout)).containsExactly("treatmentTried");
 	}
 
 	@Test

@@ -4,11 +4,13 @@ import java.time.Instant;
 import java.util.UUID;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import nl.carebridge.account.encryption.EncryptedText;
 
 /** Someone who signs in with email and password (ADR-010). The password is only stored as a BCrypt hash. */
 @Entity
@@ -19,11 +21,17 @@ public class Account {
 	@GeneratedValue(strategy = GenerationType.UUID)
 	private UUID id;
 
-	/** Stored in lower case, so the same address cannot be registered twice with different capitals. */
-	@Column(nullable = false, length = 320)
+	/** Stored in lower case and encrypted. */
+	@Convert(converter = EncryptedText.class)
+	@Column(nullable = false)
 	private String email;
 
-	@Column(nullable = false, length = 100)
+	/** Finds the account at sign-in, because encrypted text cannot be searched. Unique, so an address is registered once. */
+	@Column(nullable = false, length = 64)
+	private String emailHash;
+
+	@Convert(converter = EncryptedText.class)
+	@Column(nullable = false)
 	private String name;
 
 	@Column(nullable = false, length = 100)
@@ -56,6 +64,14 @@ public class Account {
 
 	public void setEmail(String email) {
 		this.email = email;
+	}
+
+	public String getEmailHash() {
+		return emailHash;
+	}
+
+	public void setEmailHash(String emailHash) {
+		this.emailHash = emailHash;
 	}
 
 	public String getName() {

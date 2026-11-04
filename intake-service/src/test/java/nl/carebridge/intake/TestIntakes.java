@@ -10,6 +10,9 @@ import nl.carebridge.intake.model.Symptom;
 /** A complete, valid set of answers that tests can change one field at a time. */
 public final class TestIntakes {
 
+	/** The test key from src/test/resources/config/application.properties. */
+	public static final String DATA_KEY = "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=";
+
 	private TestIntakes() {
 	}
 

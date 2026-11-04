@@ -4,9 +4,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
 
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.oauth2.jwt.Jwt;
 
+@Tag("unit")
 class CurrentUserResolverTest {
 
 	private final CurrentUserResolver resolver = new CurrentUserResolver(new SecurityProperties("client-id", "carebridge-account-service", "http://account/jwks",

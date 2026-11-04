@@ -15,6 +15,7 @@ import org.springframework.web.server.ResponseStatusException;
 import nl.carebridge.account.config.LoginProperties;
 import nl.carebridge.account.dto.LoginRequest;
 import nl.carebridge.account.dto.RegisterRequest;
+import nl.carebridge.account.encryption.DataProtection;
 import nl.carebridge.account.model.Account;
 import nl.carebridge.account.repository.AccountRepository;
 
@@ -27,15 +28,17 @@ public class AccountService {
 	private final PasswordEncoder passwordEncoder;
 	private final LoginProperties loginProperties;
 	private final Clock clock;
+	private final DataProtection protection;
 	/** Compared against when the email is unknown, so a wrong email takes as long as a wrong password. */
 	private final String unknownAccountHash;
 
 	public AccountService(AccountRepository accountRepository, PasswordEncoder passwordEncoder,
-			LoginProperties loginProperties, Clock clock) {
+			LoginProperties loginProperties, Clock clock, DataProtection protection) {
 		this.accountRepository = accountRepository;
 		this.passwordEncoder = passwordEncoder;
 		this.loginProperties = loginProperties;
 		this.clock = clock;
+		this.protection = protection;
 		this.unknownAccountHash = passwordEncoder.encode("no account has this password");
 	}
 
@@ -43,11 +46,13 @@ public class AccountService {
 	@Transactional
 	public Account register(RegisterRequest request) {
 		String email = normalize(request.email());
-		if (accountRepository.existsByEmail(email)) {
+		String emailHash = protection.hash(email);
+		if (accountRepository.existsByEmailHash(emailHash)) {
 			throw emailTaken();
 		}
 		Account account = new Account();
 		account.setEmail(email);
+		account.setEmailHash(emailHash);
 		account.setName(request.name().strip());
 		account.setPasswordHash(passwordEncoder.encode(request.password()));
 		account.setEmailVerified(false);
@@ -68,7 +73,7 @@ public class AccountService {
 	 */
 	@Transactional(noRollbackFor = ResponseStatusException.class)
 	public Account authenticate(LoginRequest request) {
-		Optional<Account> found = accountRepository.findByEmail(normalize(request.email()));
+		Optional<Account> found = accountRepository.findByEmailHash(protection.hash(normalize(request.email())));
 		if (found.isEmpty()) {
 			passwordEncoder.matches(request.password(), unknownAccountHash);
 			throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, WRONG_CREDENTIALS);

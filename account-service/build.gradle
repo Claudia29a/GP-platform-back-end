@@ -2,7 +2,7 @@ plugins {
 	id 'java'
 	id 'jacoco'
 	id 'org.sonarqube' version '7.5.0.8588'
-	id 'org.springframework.boot' version '4.1.1'
+	id 'org.springframework.boot' version '4.1.2'
 	id 'io.spring.dependency-management' version '1.1.7'
 }
 
@@ -52,6 +52,11 @@ tasks.named('jacocoTestReport') {
 		xml.required = true
 		html.required = true
 	}
+}
+
+// ./gradlew bootRun is for a laptop, so it uses application-local.properties.
+tasks.named('bootRun') {
+	args '--spring.profiles.active=local'
 }
 
 tasks.named('jar') {

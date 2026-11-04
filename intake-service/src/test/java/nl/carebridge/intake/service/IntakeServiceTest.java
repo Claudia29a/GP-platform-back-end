@@ -15,6 +15,7 @@ import java.util.Set;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -24,7 +25,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
+import nl.carebridge.intake.TestIntakes;
 import nl.carebridge.intake.dto.SubmitIntakeRequest;
+import nl.carebridge.intake.encryption.DataProtection;
 import nl.carebridge.intake.model.ComplaintArea;
 import nl.carebridge.intake.model.ComplaintDuration;
 import nl.carebridge.intake.model.Intake;
@@ -34,6 +37,7 @@ import nl.carebridge.intake.security.CurrentUser;
 import nl.carebridge.intake.security.Role;
 
 @ExtendWith(MockitoExtension.class)
+@Tag("unit")
 class IntakeServiceTest {
 
 	private static final CurrentUser PATIENT = new CurrentUser("google-anna", "Anna de Vries", "anna@example.com", Role.PATIENT);
@@ -49,6 +53,12 @@ class IntakeServiceTest {
 	@Mock
 	private QueueService queueService;
 
+	@Mock
+	private PrivacyConsentService privacyConsentService;
+
+	@Spy
+	private DataProtection protection = new DataProtection(TestIntakes.DATA_KEY);
+
 	@InjectMocks
 	private IntakeService intakeService;
 
@@ -59,12 +69,22 @@ class IntakeServiceTest {
 	}
 
 	@Test
+	void aQuestionIsRefusedUntilThePatientAllowedTheUseOfTheirData() {
+		when(privacyConsentService.isNeeded(PATIENT)).thenReturn(true);
+
+		assertThatThrownBy(() -> intakeService.submit(validRequest(), PATIENT))
+				.isInstanceOf(ResponseStatusException.class)
+				.satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN));
+		verify(intakeRepository, never()).save(any());
+	}
+
+	@Test
 	void submitStoresAllAnswersWithThePatientAsOwner() {
 		Instant before = Instant.now();
 
 		Intake intake = intakeService.submit(validRequest(), PATIENT);
 
-		assertThat(intake.getPatientId()).isEqualTo("google-anna");
+		assertThat(intake.getPatientId()).isEqualTo(protection.hash("google-anna"));
 		assertThat(intake.getPatientName()).isEqualTo("Anna de Vries");
 		assertThat(intake.getPatientEmail()).isEqualTo("anna@example.com");
 		assertThat(intake.getComplaintArea()).isEqualTo(ComplaintArea.SKIN);
@@ -75,7 +95,7 @@ class IntakeServiceTest {
 		assertThat(intake.isTriedTreatment()).isTrue();
 		assertThat(intake.getTreatmentTried()).isEqualTo("Moisturising cream");
 		assertThat(intake.getDescription()).isEqualTo("Itchy rash on my left arm");
-		assertThat(intake.getStatus()).isEqualTo(Intake.Status.SUBMITTED);
+		assertThat(intake.getStatus()).isEqualTo(Intake.Status.IN_REVIEW);
 		assertThat(intake.getSubmittedAt()).isBetween(before, Instant.now());
 		verify(intakeRepository).save(intake);
 	}
@@ -117,7 +137,7 @@ class IntakeServiceTest {
 	@Test
 	void patientOnlySeesOwnQuestions() {
 		List<Intake> own = List.of(new Intake());
-		when(intakeRepository.findAllByPatientIdOrderBySubmittedAtAsc("google-anna")).thenReturn(own);
+		when(intakeRepository.findAllByPatientIdOrderBySubmittedAtAsc(protection.hash("google-anna"))).thenReturn(own);
 
 		assertThat(intakeService.findVisibleTo(PATIENT)).isSameAs(own);
 		verify(intakeRepository, never()).findAllByOrderBySubmittedAtAsc();
@@ -135,7 +155,7 @@ class IntakeServiceTest {
 	@Test
 	void patientGetsNotFoundForSomeoneElsesQuestion() {
 		UUID id = UUID.randomUUID();
-		when(intakeRepository.findByIdAndPatientId(id, "google-anna")).thenReturn(Optional.empty());
+		when(intakeRepository.findByIdAndPatientId(id, protection.hash("google-anna"))).thenReturn(Optional.empty());
 
 		assertNotFound(() -> intakeService.findById(id, PATIENT));
 		verify(intakeRepository, never()).findById(any());

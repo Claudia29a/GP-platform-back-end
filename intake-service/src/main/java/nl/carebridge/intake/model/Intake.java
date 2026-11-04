@@ -5,12 +5,8 @@ import java.util.EnumSet;
 import java.util.Set;
 import java.util.UUID;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
-
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -18,68 +14,75 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import nl.carebridge.intake.encryption.EncryptedConverters;
 
 @Entity
 @Table(name = "intake")
 public class Intake {
 
 	public enum Status {
-		SUBMITTED
+		IN_REVIEW
 	}
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.UUID)
 	private UUID id;
 
-	/** Google account ID of the patient who asked the question. */
+	/** A hash of the account ID of the patient who asked the question; hashed, because it is only compared. */
 	@Column(nullable = false)
 	private String patientId;
 
+	@Convert(converter = EncryptedConverters.Text.class)
 	@Column(nullable = false)
 	private String patientName;
 
-	@Column(nullable = false, length = 320)
+	@Convert(converter = EncryptedConverters.Text.class)
+	@Column(nullable = false)
 	private String patientEmail;
 
-	@Enumerated(EnumType.STRING)
-	@Column(nullable = false, length = 32)
+	@Convert(converter = EncryptedConverters.Area.class)
+	@Column(nullable = false)
 	private ComplaintArea complaintArea;
 
 	/** Only filled in when the area is OTHER. */
-	@Column(length = 100)
+	@Convert(converter = EncryptedConverters.Text.class)
 	private String complaintAreaOther;
 
-	@Enumerated(EnumType.STRING)
-	@Column(nullable = false, length = 32)
+	@Convert(converter = EncryptedConverters.Duration.class)
+	@Column(nullable = false)
 	private ComplaintDuration duration;
 
 	/** How much it bothers the patient, from 1 (barely) to 10 (worst imaginable). */
+	@Convert(converter = EncryptedConverters.Number.class)
 	@Column(nullable = false)
 	private int severity;
 
-	/** The ticked checklist items, stored as a JSON array (ADR-005). */
-	@JdbcTypeCode(SqlTypes.JSON)
+	/** The ticked checklist items. */
+	@Convert(converter = EncryptedConverters.Symptoms.class)
 	@Column(nullable = false)
 	private Set<Symptom> symptoms = EnumSet.noneOf(Symptom.class);
 
-	@Column(length = 200)
+	@Convert(converter = EncryptedConverters.Text.class)
 	private String symptomsOther;
 
+	@Convert(converter = EncryptedConverters.YesNo.class)
 	@Column(nullable = false)
 	private boolean takesMedication;
 
 	/** Only filled in when the patient takes medication or treatment. */
-	@Column(length = 500)
+	@Convert(converter = EncryptedConverters.Text.class)
 	private String currentMedication;
 
+	@Convert(converter = EncryptedConverters.YesNo.class)
 	@Column(nullable = false)
 	private boolean triedTreatment;
 
 	/** Only filled in when the patient already tried something for this problem. */
-	@Column(length = 500)
+	@Convert(converter = EncryptedConverters.Text.class)
 	private String treatmentTried;
 
-	@Column(nullable = false, length = 1000)
+	@Convert(converter = EncryptedConverters.Text.class)
+	@Column(nullable = false)
 	private String description;
 
 	/** Sorting suggestion for the practice (0–100); never sent to patients. */
@@ -88,6 +91,10 @@ public class Intake {
 
 	/** Place in the practice's queue, 1 = first; null once a question leaves the queue. */
 	private Integer queuePosition;
+
+	/** True when staff put this question above a more severe one; new questions stay below it. */
+	@Column(nullable = false)
+	private boolean movedByHand;
 
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false, length = 20)
@@ -211,8 +218,6 @@ public class Intake {
 		this.treatmentTried = treatmentTried;
 	}
 
-	/** Hidden from the question endpoints that patients use; staff get it through the queue. */
-	@JsonIgnore
 	public int getSeverityScore() {
 		return severityScore;
 	}
@@ -221,13 +226,20 @@ public class Intake {
 		this.severityScore = severityScore;
 	}
 
-	@JsonIgnore
 	public Integer getQueuePosition() {
 		return queuePosition;
 	}
 
 	public void setQueuePosition(Integer queuePosition) {
 		this.queuePosition = queuePosition;
+	}
+
+	public boolean isMovedByHand() {
+		return movedByHand;
+	}
+
+	public void setMovedByHand(boolean movedByHand) {
+		this.movedByHand = movedByHand;
 	}
 
 	public String getDescription() {

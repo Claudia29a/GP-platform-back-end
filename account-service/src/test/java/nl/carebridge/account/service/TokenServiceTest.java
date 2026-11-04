@@ -12,6 +12,7 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Base64;
 
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
@@ -21,6 +22,7 @@ import com.nimbusds.jose.jwk.RSAKey;
 import nl.carebridge.account.config.TokenProperties;
 import nl.carebridge.account.model.Account;
 
+@Tag("unit")
 class TokenServiceTest {
 
 	private static final Instant NOW = Instant.now();

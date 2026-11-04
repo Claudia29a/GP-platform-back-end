@@ -17,9 +17,12 @@ import nl.carebridge.intake.repository.IntakeRepository;
 /**
  * The practice's queue of open questions (SAD v2, process 2). New questions are placed by severity
  * score; the GP assistant or GP can then change the order by hand, and their order always wins.
+ * Every change takes a lock first, so two people changing the queue cannot lose or repeat a position.
  */
 @Service
 public class QueueService {
+
+	private static final long QUEUE_LOCK = 7_240_001L;
 
 	private final IntakeRepository intakeRepository;
 
@@ -29,21 +32,22 @@ public class QueueService {
 
 	@Transactional(readOnly = true)
 	public List<Intake> currentQueue() {
-		return intakeRepository.findAllByStatusOrderByQueuePositionAscSubmittedAtAsc(Intake.Status.SUBMITTED);
+		return intakeRepository.findAllByStatusOrderByQueuePositionAscSubmittedAtAsc(Intake.Status.IN_REVIEW);
 	}
 
 	/**
-	 * Gives a new question its place: right after the last question with an equal or higher score.
-	 * In a queue sorted by score that is simply its sorted place; after manual reordering it never
-	 * jumps above a question staff moved up, because their order wins (SAD v2, section 2.4).
-	 * Equal scores keep arrival order. Runs inside the caller's transaction; the queue is renumbered.
+	 * Gives a new question its place: right after the last question with an equal or higher score,
+	 * but always below the lowest question staff moved up, because their order wins (Story 4 AC4,
+	 * SAD v2 section 2.4). Equal scores keep arrival order. Runs inside the caller's transaction.
 	 */
 	@Transactional
 	public void placeByScore(Intake newIntake) {
+		intakeRepository.lockQueue(QUEUE_LOCK);
 		List<Intake> queue = new ArrayList<>(currentQueue());
 		int index = 0;
 		for (int i = 0; i < queue.size(); i++) {
-			if (queue.get(i).getSeverityScore() >= newIntake.getSeverityScore()) {
+			Intake question = queue.get(i);
+			if (question.isMovedByHand() || question.getSeverityScore() >= newIntake.getSeverityScore()) {
 				index = i + 1;
 			}
 		}
@@ -58,6 +62,7 @@ public class QueueService {
 	 */
 	@Transactional
 	public List<Intake> reorder(List<UUID> intakeIds) {
+		intakeRepository.lockQueue(QUEUE_LOCK);
 		List<Intake> queue = currentQueue();
 		Set<UUID> requested = new HashSet<>(intakeIds);
 		Set<UUID> open = new HashSet<>(queue.stream().map(Intake::getId).toList());
@@ -69,7 +74,18 @@ public class QueueService {
 				.map(id -> queue.stream().filter(intake -> intake.getId().equals(id)).findFirst().orElseThrow())
 				.toList();
 		renumber(ordered);
+		markMovedByHand(ordered);
 		return ordered;
+	}
+
+	/** Only staff can put a question above a more severe one, so that is what marks it as moved. */
+	private static void markMovedByHand(List<Intake> ordered) {
+		int highestBelow = -1;
+		for (int i = ordered.size() - 1; i >= 0; i--) {
+			Intake question = ordered.get(i);
+			question.setMovedByHand(question.getSeverityScore() < highestBelow);
+			highestBelow = Math.max(highestBelow, question.getSeverityScore());
+		}
 	}
 
 	private static void renumber(List<Intake> queue) {

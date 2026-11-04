@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 
 import java.util.Map;
 
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.oauth2.jwt.BadJwtException;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -17,6 +18,7 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.PlainJWT;
 
+@Tag("unit")
 class IssuerRoutingJwtDecoderTest {
 
 	private final JwtDecoder google = mock(JwtDecoder.class);

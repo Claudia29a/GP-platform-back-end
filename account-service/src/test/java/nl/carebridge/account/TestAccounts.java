@@ -7,6 +7,9 @@ import nl.carebridge.account.model.Account;
 
 public final class TestAccounts {
 
+	/** The test key from src/test/resources/config/application.properties. */
+	public static final String DATA_KEY = "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=";
+
 	private TestAccounts() {
 	}
 

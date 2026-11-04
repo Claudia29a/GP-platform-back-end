@@ -16,6 +16,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -37,12 +38,14 @@ import nl.carebridge.intake.security.CurrentUserResolver;
 import nl.carebridge.intake.security.Role;
 import nl.carebridge.intake.security.SecurityConfig;
 import nl.carebridge.intake.service.IntakeService;
+import nl.carebridge.intake.service.PrivacyConsentService;
 
 @WebMvcTest({IntakeController.class, UserController.class})
 @Import({SecurityConfig.class, CurrentUserResolver.class})
 @TestPropertySource(properties = {
 		"carebridge.security.gp-emails=gp@example.com",
 		"carebridge.security.assistant-emails=assistant@example.com"})
+@Tag("api")
 class IntakeControllerTest {
 
 	private static final CurrentUser PATIENT = new CurrentUser("google-anna", "Anna de Vries", "anna@example.com", Role.PATIENT);
@@ -55,6 +58,9 @@ class IntakeControllerTest {
 
 	@MockitoBean
 	private IntakeService intakeService;
+
+	@MockitoBean
+	private PrivacyConsentService privacyConsentService;
 
 	@Test
 	void requestsWithoutTokenAreUnauthorized() throws Exception {
@@ -114,6 +120,43 @@ class IntakeControllerTest {
 	}
 
 	@Test
+	void invalidAnswersGetAnErrorForEachField() throws Exception {
+		mockMvc.perform(post("/intakes").with(signedIn("google-anna", "Anna de Vries", "anna@example.com"))
+						.contentType(MediaType.APPLICATION_JSON).content("{\"severity\": 11}"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.errors.complaintArea").exists())
+				.andExpect(jsonPath("$.errors.duration").exists())
+				.andExpect(jsonPath("$.errors.severity").exists())
+				.andExpect(jsonPath("$.errors.description").exists());
+	}
+
+	@Test
+	void aConditionalRuleIsReportedOnItsField() throws Exception {
+		mockMvc.perform(post("/intakes").with(signedIn("google-anna", "Anna de Vries", "anna@example.com"))
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(TestIntakes.VALID_JSON.replace("\"takesMedication\": false", "\"takesMedication\": true")))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.errors.currentMedication").value("say which medication or treatment you take"));
+	}
+
+	@Test
+	void anOptionThatDoesNotExistIsReportedOnItsField() throws Exception {
+		mockMvc.perform(post("/intakes").with(signedIn("google-anna", "Anna de Vries", "anna@example.com"))
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(TestIntakes.VALID_JSON.replace("\"SKIN\"", "\"ELBOW\"")))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.errors.complaintArea").value("is not a valid value"));
+	}
+
+	@Test
+	void aBodyThatIsNotJsonGetsAClearAnswer() throws Exception {
+		mockMvc.perform(post("/intakes").with(signedIn("google-anna", "Anna de Vries", "anna@example.com"))
+						.contentType(MediaType.APPLICATION_JSON).content("not json"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.message").value("The request could not be read"));
+	}
+
+	@Test
 	void listShowsWhatTheSignedInUserMaySee() throws Exception {
 		when(intakeService.findVisibleTo(PATIENT)).thenReturn(List.of(sampleIntake("Mine")));
 
@@ -163,7 +206,7 @@ class IntakeControllerTest {
 		intake.setSeverityScore(47);
 		intake.setQueuePosition(1);
 		intake.setDescription(description);
-		intake.setStatus(Intake.Status.SUBMITTED);
+		intake.setStatus(Intake.Status.IN_REVIEW);
 		intake.setSubmittedAt(Instant.parse("2026-10-14T09:00:00Z"));
 		return intake;
 	}
