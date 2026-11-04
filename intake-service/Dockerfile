@@ -13,7 +13,8 @@ RUN ./gradlew bootJar --no-daemon -x test
 
 # Stage 2: only the Java runtime and the jar.
 FROM eclipse-temurin:21-jre-alpine
-RUN addgroup -S app && adduser -S app -G app
+# The base image can lag behind Alpine's security fixes.
+RUN apk upgrade --no-cache && addgroup -S app && adduser -S app -G app
 USER app
 WORKDIR /app
 COPY --from=build /workspace/build/libs/*.jar app.jar
