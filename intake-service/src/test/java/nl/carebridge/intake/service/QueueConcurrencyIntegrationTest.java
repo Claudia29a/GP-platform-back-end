@@ -50,11 +50,15 @@ class QueueConcurrencyIntegrationTest {
 	private QueueService queueService;
 
 	@Autowired
+	private PrivacyConsentService privacyConsentService;
+
+	@Autowired
 	private IntakeRepository repository;
 
 	@BeforeEach
 	void emptyQueue() {
 		repository.deleteAll();
+		privacyConsentService.accept(PATIENT);
 	}
 
 	@Test

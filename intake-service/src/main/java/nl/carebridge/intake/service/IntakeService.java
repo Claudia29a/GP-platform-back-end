@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import nl.carebridge.intake.dto.SubmitIntakeRequest;
+import nl.carebridge.intake.encryption.DataProtection;
 import nl.carebridge.intake.model.ComplaintArea;
 import nl.carebridge.intake.model.Intake;
 import nl.carebridge.intake.repository.IntakeRepository;
@@ -22,12 +23,16 @@ public class IntakeService {
 	private final IntakeRepository intakeRepository;
 	private final SeverityCalculator severityCalculator;
 	private final QueueService queueService;
+	private final PrivacyConsentService privacyConsentService;
+	private final DataProtection protection;
 
 	public IntakeService(IntakeRepository intakeRepository, SeverityCalculator severityCalculator,
-			QueueService queueService) {
+			QueueService queueService, PrivacyConsentService privacyConsentService, DataProtection protection) {
 		this.intakeRepository = intakeRepository;
 		this.severityCalculator = severityCalculator;
 		this.queueService = queueService;
+		this.privacyConsentService = privacyConsentService;
+		this.protection = protection;
 	}
 
 	/**
@@ -37,8 +42,11 @@ public class IntakeService {
 	 */
 	@Transactional
 	public Intake submit(SubmitIntakeRequest request, CurrentUser patient) {
+		if (privacyConsentService.isNeeded(patient)) {
+			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "The patient has not allowed the use of their data");
+		}
 		Intake intake = new Intake();
-		intake.setPatientId(patient.id());
+		intake.setPatientId(protection.hash(patient.id()));
 		intake.setPatientName(patient.name());
 		intake.setPatientEmail(patient.email());
 
@@ -66,7 +74,7 @@ public class IntakeService {
 	public List<Intake> findVisibleTo(CurrentUser user) {
 		return user.isStaff()
 				? intakeRepository.findAllByOrderBySubmittedAtAsc()
-				: intakeRepository.findAllByPatientIdOrderBySubmittedAtAsc(user.id());
+				: intakeRepository.findAllByPatientIdOrderBySubmittedAtAsc(protection.hash(user.id()));
 	}
 
 	/** Someone else's question answers 404 for a patient, so its existence is not revealed. */
@@ -74,7 +82,7 @@ public class IntakeService {
 	public Intake findById(UUID id, CurrentUser user) {
 		Optional<Intake> intake = user.isStaff()
 				? intakeRepository.findById(id)
-				: intakeRepository.findByIdAndPatientId(id, user.id());
+				: intakeRepository.findByIdAndPatientId(id, protection.hash(user.id()));
 		return intake.orElseThrow(
 				() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Intake " + id + " not found"));
 	}

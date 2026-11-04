@@ -14,10 +14,12 @@ import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
 import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.context.annotation.Import;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
+import nl.carebridge.intake.encryption.EncryptionTestConfig;
 import nl.carebridge.intake.model.ComplaintArea;
 import nl.carebridge.intake.model.ComplaintDuration;
 import nl.carebridge.intake.model.Intake;
@@ -30,6 +32,7 @@ import nl.carebridge.intake.model.Symptom;
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Testcontainers
+@Import(EncryptionTestConfig.class)
 @Tag("integration")
 class IntakeRepositoryTest {
 
@@ -56,6 +59,20 @@ class IntakeRepositoryTest {
 		assertThat(loaded.getSeverity()).isEqualTo(6);
 		assertThat(loaded.isTakesMedication()).isTrue();
 		assertThat(loaded.getCurrentMedication()).isEqualTo("Inhaler");
+	}
+
+	@Test
+	void anyoneReadingTheDatabaseDirectlySeesNoAnswersOrNames() {
+		Intake saved = repository.save(intake("google-anna", Set.of(Symptom.FEVER), Instant.now()));
+		entityManager.flush();
+
+		Object[] row = (Object[]) entityManager.getEntityManager().createNativeQuery("""
+				SELECT patient_name, patient_email, complaint_area, duration, severity, symptoms, takes_medication,
+				    current_medication, tried_treatment, description
+				FROM intake WHERE id = :id""").setParameter("id", saved.getId()).getSingleResult();
+
+		assertThat(row).doesNotContainNull().allSatisfy(column -> assertThat(column.toString())
+				.doesNotContain("anna", "CHEST", "FOUR_TO", "FEVER", "Inhaler", "true").hasSizeGreaterThan(20));
 	}
 
 	@Test

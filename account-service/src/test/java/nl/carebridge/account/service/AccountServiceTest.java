@@ -27,9 +27,11 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.server.ResponseStatusException;
 
+import nl.carebridge.account.TestAccounts;
 import nl.carebridge.account.config.LoginProperties;
 import nl.carebridge.account.dto.LoginRequest;
 import nl.carebridge.account.dto.RegisterRequest;
+import nl.carebridge.account.encryption.DataProtection;
 import nl.carebridge.account.model.Account;
 import nl.carebridge.account.repository.AccountRepository;
 
@@ -44,12 +46,13 @@ class AccountServiceTest {
 
 	/** Low cost factor keeps the tests fast; production uses the default. */
 	private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder(4);
+	private final DataProtection protection = new DataProtection(TestAccounts.DATA_KEY);
 	private AccountService accountService;
 
 	@BeforeEach
 	void createService() {
 		accountService = new AccountService(accountRepository, passwordEncoder,
-				new LoginProperties(3, Duration.ofMinutes(15)), Clock.fixed(NOW, ZoneOffset.UTC));
+				new LoginProperties(3, Duration.ofMinutes(15)), Clock.fixed(NOW, ZoneOffset.UTC), protection);
 	}
 
 	@Test
@@ -59,6 +62,7 @@ class AccountServiceTest {
 		Account account = accountService.register(new RegisterRequest("  Anna de Vries ", " Anna@Example.COM ", "Secret12"));
 
 		assertThat(account.getEmail()).isEqualTo("anna@example.com");
+		assertThat(account.getEmailHash()).isEqualTo(protection.hash("anna@example.com"));
 		assertThat(account.getName()).isEqualTo("Anna de Vries");
 		assertThat(account.getPasswordHash()).isNotEqualTo("Secret12").startsWith("$2");
 		assertThat(passwordEncoder.matches("Secret12", account.getPasswordHash())).isTrue();
@@ -68,7 +72,7 @@ class AccountServiceTest {
 
 	@Test
 	void registerRefusesAnEmailThatAlreadyHasAnAccount() {
-		when(accountRepository.existsByEmail("anna@example.com")).thenReturn(true);
+		when(accountRepository.existsByEmailHash(protection.hash("anna@example.com"))).thenReturn(true);
 
 		assertStatus(() -> accountService.register(new RegisterRequest("Anna", "ANNA@example.com", "Secret12")), HttpStatus.CONFLICT);
 		verify(accountRepository, never()).saveAndFlush(any());
@@ -93,7 +97,7 @@ class AccountServiceTest {
 	@Test
 	void wrongPasswordAndUnknownEmailGiveTheSameAnswer() {
 		stored();
-		when(accountRepository.findByEmail("nobody@example.com")).thenReturn(Optional.empty());
+		when(accountRepository.findByEmailHash(protection.hash("nobody@example.com"))).thenReturn(Optional.empty());
 
 		ResponseStatusException wrongPassword = rejected(new LoginRequest("anna@example.com", "Wrong123"));
 		ResponseStatusException unknownEmail = rejected(new LoginRequest("nobody@example.com", "Wrong123"));
@@ -126,7 +130,7 @@ class AccountServiceTest {
 
 	private Account stored() {
 		Account account = account("anna@example.com", passwordEncoder.encode("Secret12"));
-		when(accountRepository.findByEmail("anna@example.com")).thenReturn(Optional.of(account));
+		when(accountRepository.findByEmailHash(protection.hash("anna@example.com"))).thenReturn(Optional.of(account));
 		return account;
 	}
 

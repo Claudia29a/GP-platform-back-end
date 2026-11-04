@@ -38,6 +38,7 @@ import nl.carebridge.intake.security.CurrentUserResolver;
 import nl.carebridge.intake.security.Role;
 import nl.carebridge.intake.security.SecurityConfig;
 import nl.carebridge.intake.service.IntakeService;
+import nl.carebridge.intake.service.PrivacyConsentService;
 
 @WebMvcTest({IntakeController.class, UserController.class})
 @Import({SecurityConfig.class, CurrentUserResolver.class})
@@ -57,6 +58,9 @@ class IntakeControllerTest {
 
 	@MockitoBean
 	private IntakeService intakeService;
+
+	@MockitoBean
+	private PrivacyConsentService privacyConsentService;
 
 	@Test
 	void requestsWithoutTokenAreUnauthorized() throws Exception {
