@@ -54,6 +54,11 @@ tasks.named('jacocoTestReport') {
 	}
 }
 
+// ./gradlew bootRun is for a laptop, so it uses application-local.properties.
+tasks.named('bootRun') {
+	args '--spring.profiles.active=local'
+}
+
 tasks.named('jar') {
 	enabled = false
 }
