@@ -34,6 +34,12 @@ services:
       interval: 5s
       retries: 10
 
+  # A test mail server: it catches every email the platform sends. Read them at http://localhost:8025.
+  mailpit:
+    image: axllent/mailpit:v1.32.0
+    ports:
+      - "8025:8025"
+
   account-service:
     build: ./account-service
     environment:
@@ -43,11 +49,21 @@ services:
       # Local only: without a key the service makes a temporary one, so a restart signs everyone out.
       ACCOUNT_TOKEN_PRIVATE_KEY: ${ACCOUNT_TOKEN_PRIVATE_KEY:-}
       ACCOUNT_DATA_KEY: ${ACCOUNT_DATA_KEY:?Set ACCOUNT_DATA_KEY in .env, see .env.example}
+      # Emails go to Mailpit, which catches them all: nothing reaches a real inbox.
+      MAIL_HOST: mailpit
+      MAIL_PORT: 1025
+      MAIL_USERNAME: ""
+      MAIL_PASSWORD: ""
+      MAIL_AUTH: "false"
+      MAIL_STARTTLS_REQUIRED: "false"
+      MAIL_FROM: CareBridge <no-reply@carebridge.test>
     ports:
       - "8081:8080"
     depends_on:
       account-db:
         condition: service_healthy
+      mailpit:
+        condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health/readiness || exit 1"]
       interval: 10s

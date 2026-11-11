@@ -50,6 +50,24 @@ public class Account {
 	@Column(nullable = false)
 	private Instant createdAt;
 
+	/** A hash of the emailed code, never the code itself. */
+	@Column(length = 64)
+	private String verificationCodeHash;
+
+	private Instant verificationExpiresAt;
+
+	/** Wrong codes typed for the current code. */
+	@Column(nullable = false)
+	private int verificationAttempts;
+
+	private Instant lastCodeSentAt;
+
+	/** Start of the hour in which codesSentCount codes were sent. */
+	private Instant codesSentSince;
+
+	@Column(nullable = false)
+	private int codesSentCount;
+
 	public UUID getId() {
 		return id;
 	}
@@ -120,5 +138,53 @@ public class Account {
 
 	public void setCreatedAt(Instant createdAt) {
 		this.createdAt = createdAt;
+	}
+
+	public String getVerificationCodeHash() {
+		return verificationCodeHash;
+	}
+
+	public void setVerificationCodeHash(String verificationCodeHash) {
+		this.verificationCodeHash = verificationCodeHash;
+	}
+
+	public Instant getVerificationExpiresAt() {
+		return verificationExpiresAt;
+	}
+
+	public void setVerificationExpiresAt(Instant verificationExpiresAt) {
+		this.verificationExpiresAt = verificationExpiresAt;
+	}
+
+	public int getVerificationAttempts() {
+		return verificationAttempts;
+	}
+
+	public void setVerificationAttempts(int verificationAttempts) {
+		this.verificationAttempts = verificationAttempts;
+	}
+
+	public Instant getLastCodeSentAt() {
+		return lastCodeSentAt;
+	}
+
+	public void setLastCodeSentAt(Instant lastCodeSentAt) {
+		this.lastCodeSentAt = lastCodeSentAt;
+	}
+
+	public Instant getCodesSentSince() {
+		return codesSentSince;
+	}
+
+	public void setCodesSentSince(Instant codesSentSince) {
+		this.codesSentSince = codesSentSince;
+	}
+
+	public int getCodesSentCount() {
+		return codesSentCount;
+	}
+
+	public void setCodesSentCount(int codesSentCount) {
+		this.codesSentCount = codesSentCount;
 	}
 }

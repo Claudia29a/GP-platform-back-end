@@ -19,6 +19,8 @@ import org.springframework.stereotype.Component;
 @Component
 public class CurrentUserResolver {
 
+	public static final String EMAIL_VERIFIED = "EMAIL_VERIFIED";
+
 	private final Set<String> gpEmails;
 	private final Set<String> assistantEmails;
 
@@ -34,9 +36,15 @@ public class CurrentUserResolver {
 				roleFor(email, isVerified(token)));
 	}
 
-	/** Spring Security authorities for the role, e.g. ROLE_GP. */
+	/** Spring Security authorities: the role, e.g. ROLE_GP, plus EMAIL_VERIFIED once the address is proven. */
 	public Collection<GrantedAuthority> authorities(Jwt token) {
-		return List.of(new SimpleGrantedAuthority("ROLE_" + roleFor(token.getClaimAsString("email"), isVerified(token)).name()));
+		GrantedAuthority role = new SimpleGrantedAuthority("ROLE_" + roleFor(token.getClaimAsString("email"), isVerified(token)).name());
+		return isVerified(token) ? List.of(role, new SimpleGrantedAuthority(EMAIL_VERIFIED)) : List.of(role);
+	}
+
+	/** Google always verifies; a password account after its emailed code was typed in. */
+	public boolean isEmailVerified(Jwt token) {
+		return isVerified(token);
 	}
 
 	/**
