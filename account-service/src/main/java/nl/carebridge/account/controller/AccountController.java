@@ -3,7 +3,10 @@ package nl.carebridge.account.controller;
 import java.util.Optional;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
@@ -11,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 
+import nl.carebridge.account.dto.AccountDataResponse;
 import nl.carebridge.account.dto.AccountResponse;
 import nl.carebridge.account.dto.LoginRequest;
 import nl.carebridge.account.dto.RegisterRequest;
@@ -20,6 +24,7 @@ import nl.carebridge.account.dto.VerifyRequest;
 import nl.carebridge.account.model.Account;
 import nl.carebridge.account.service.AccountService;
 import nl.carebridge.account.service.ClientAddress;
+import nl.carebridge.account.service.OwnTokens;
 import nl.carebridge.account.service.SignUpLimiter;
 import nl.carebridge.account.service.TokenService;
 import nl.carebridge.account.service.VerificationService;
@@ -31,13 +36,15 @@ public class AccountController {
 	private final TokenService tokenService;
 	private final VerificationService verificationService;
 	private final SignUpLimiter signUpLimiter;
+	private final OwnTokens ownTokens;
 
 	public AccountController(AccountService accountService, TokenService tokenService,
-			VerificationService verificationService, SignUpLimiter signUpLimiter) {
+			VerificationService verificationService, SignUpLimiter signUpLimiter, OwnTokens ownTokens) {
 		this.accountService = accountService;
 		this.tokenService = tokenService;
 		this.verificationService = verificationService;
 		this.signUpLimiter = signUpLimiter;
+		this.ownTokens = ownTokens;
 	}
 
 	/** Sign up with name, email and password; a code to confirm the address is emailed straight away. */
@@ -76,6 +83,19 @@ public class AccountController {
 	@ResponseStatus(HttpStatus.ACCEPTED)
 	public void resend(@Valid @RequestBody ResendRequest request) {
 		verificationService.resend(request.email());
+	}
+
+	/** "My data": the signed-in user's own account, found from their own token. */
+	@GetMapping("/accounts/me")
+	public AccountDataResponse me(@RequestHeader(name = "Authorization", required = false) String authorization) {
+		return AccountDataResponse.from(accountService.find(ownTokens.accountId(authorization)));
+	}
+
+	/** "Delete my account": only with the user's own token. */
+	@DeleteMapping("/accounts/me")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	public void delete(@RequestHeader(name = "Authorization", required = false) String authorization) {
+		accountService.delete(ownTokens.accountId(authorization));
 	}
 
 	private TokenResponse token(Account account) {

@@ -148,4 +148,24 @@ class AccountServiceTest {
 		assertThatThrownBy(action::run).isInstanceOfSatisfying(ResponseStatusException.class,
 				ex -> assertThat(ex.getStatusCode()).isEqualTo(status));
 	}
+
+	@Test
+	void findsAndDeletesAnAccountById() {
+		Account anna = account("anna@example.com", "$2a$10$hash");
+		when(accountRepository.findById(anna.getId())).thenReturn(Optional.of(anna));
+
+		assertThat(accountService.find(anna.getId())).isSameAs(anna);
+		accountService.delete(anna.getId());
+
+		verify(accountRepository).deleteById(anna.getId());
+	}
+
+	@Test
+	void aDeletedAccountIsNotFound() {
+		java.util.UUID gone = java.util.UUID.randomUUID();
+		when(accountRepository.findById(gone)).thenReturn(Optional.empty());
+
+		assertThatThrownBy(() -> accountService.find(gone)).isInstanceOf(ResponseStatusException.class)
+				.satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND));
+	}
 }

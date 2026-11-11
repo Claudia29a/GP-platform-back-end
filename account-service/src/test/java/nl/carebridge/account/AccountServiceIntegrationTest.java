@@ -114,6 +114,28 @@ class AccountServiceIntegrationTest {
 	}
 
 	@Test
+	void anAccountCanReadAndDeleteItselfAndIsThenGone() throws Exception {
+		mockMvc.perform(post("/accounts").contentType(MediaType.APPLICATION_JSON)
+						.content("{\"name\": \"Dana\", \"email\": \"dana@example.com\", \"password\": \"Secret12\"}"))
+				.andExpect(status().isCreated());
+		String token = JsonPath.read(mockMvc.perform(post("/login").contentType(MediaType.APPLICATION_JSON)
+						.content("{\"email\": \"dana@example.com\", \"password\": \"Secret12\"}"))
+				.andReturn().getResponse().getContentAsString(), "$.token");
+
+		mockMvc.perform(get("/accounts/me").header("Authorization", "Bearer " + token))
+				.andExpect(status().isOk())
+				.andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.name").value("Dana"));
+		mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/accounts/me")
+						.header("Authorization", "Bearer " + token))
+				.andExpect(status().isNoContent());
+
+		mockMvc.perform(post("/login").contentType(MediaType.APPLICATION_JSON)
+						.content("{\"email\": \"dana@example.com\", \"password\": \"Secret12\"}"))
+				.andExpect(status().isUnauthorized());
+		assertThat(repository.findByEmailHash(protection.hash("dana@example.com"))).isEmpty();
+	}
+
+	@Test
 	void healthIsUp() throws Exception {
 		mockMvc.perform(get("/actuator/health")).andExpect(status().isOk());
 	}

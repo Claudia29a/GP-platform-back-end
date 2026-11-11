@@ -7,6 +7,7 @@ import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -29,6 +30,7 @@ import org.springframework.web.server.ResponseStatusException;
 import nl.carebridge.account.dto.LoginRequest;
 import nl.carebridge.account.service.AccountService;
 import nl.carebridge.account.service.SigningKey;
+import nl.carebridge.account.service.OwnTokens;
 import nl.carebridge.account.service.SignUpLimiter;
 import nl.carebridge.account.service.TokenService;
 import nl.carebridge.account.service.TooManyRequestsException;
@@ -55,6 +57,9 @@ class AccountControllerTest {
 
 	@MockitoBean
 	private SignUpLimiter signUpLimiter;
+
+	@MockitoBean
+	private OwnTokens ownTokens;
 
 	@Test
 	void signUpReturnsTheAccountWithoutPasswordData() throws Exception {
@@ -196,5 +201,38 @@ class AccountControllerTest {
 						.content("{\"email\": \"anna@example.com\", \"password\": \"Secret12\"}"))
 				.andExpect(status().isOk());
 		verify(verificationService, never()).sendIfNoValidCode(any());
+	}
+
+	@Test
+	void anAccountReadsItsOwnDataWithItsOwnToken() throws Exception {
+		var anna = account("anna@example.com", "$2a$10$hash");
+		when(ownTokens.accountId("Bearer own.token")).thenReturn(anna.getId());
+		when(accountService.find(anna.getId())).thenReturn(anna);
+
+		mockMvc.perform(get("/accounts/me").header("Authorization", "Bearer own.token"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.email").value("anna@example.com"))
+				.andExpect(jsonPath("$.emailVerified").value(false))
+				.andExpect(jsonPath("$.createdAt").exists())
+				.andExpect(jsonPath("$.passwordHash").doesNotExist());
+	}
+
+	@Test
+	void anAccountDeletesItselfWithItsOwnToken() throws Exception {
+		var anna = account("anna@example.com", "$2a$10$hash");
+		when(ownTokens.accountId("Bearer own.token")).thenReturn(anna.getId());
+
+		mockMvc.perform(delete("/accounts/me").header("Authorization", "Bearer own.token"))
+				.andExpect(status().isNoContent());
+		verify(accountService).delete(anna.getId());
+	}
+
+	@Test
+	void withoutAValidTokenNothingIsReadOrDeleted() throws Exception {
+		when(ownTokens.accountId(any())).thenThrow(new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Sign in again"));
+
+		mockMvc.perform(get("/accounts/me")).andExpect(status().isUnauthorized());
+		mockMvc.perform(delete("/accounts/me").header("Authorization", "Bearer forged")).andExpect(status().isUnauthorized());
+		verify(accountService, never()).delete(any());
 	}
 }

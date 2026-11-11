@@ -4,6 +4,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.UUID;
 
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
@@ -91,6 +92,18 @@ public class AccountService {
 		account.setFailedLoginAttempts(0);
 		account.setLockedUntil(null);
 		return account;
+	}
+
+	@Transactional(readOnly = true)
+	public Account find(UUID id) {
+		return accountRepository.findById(id)
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "This account no longer exists"));
+	}
+
+	/** The right to be forgotten (GDPR Art. 17): the account and everything stored with it are removed. */
+	@Transactional
+	public void delete(UUID id) {
+		accountRepository.deleteById(id);
 	}
 
 	private void registerFailure(Account account, Instant now) {

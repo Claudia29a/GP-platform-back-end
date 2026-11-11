@@ -56,6 +56,9 @@ class IntakeServiceTest {
 	@Mock
 	private PrivacyConsentService privacyConsentService;
 
+	@Mock
+	private AccessLogService accessLogService;
+
 	@Spy
 	private DataProtection protection = new DataProtection(TestIntakes.DATA_KEY);
 
@@ -168,6 +171,17 @@ class IntakeServiceTest {
 		when(intakeRepository.findById(id)).thenReturn(Optional.of(intake));
 
 		assertThat(intakeService.findById(id, GP)).isSameAs(intake);
+		verify(accessLogService).record(id, GP);
+	}
+
+	@Test
+	void aPatientOpeningTheirOwnQuestionIsNotRecorded() {
+		UUID id = UUID.randomUUID();
+		when(intakeRepository.findByIdAndPatientId(id, protection.hash("google-anna"))).thenReturn(Optional.of(new Intake()));
+
+		intakeService.findById(id, PATIENT);
+
+		verify(accessLogService, never()).record(any(), any());
 	}
 
 	@Test

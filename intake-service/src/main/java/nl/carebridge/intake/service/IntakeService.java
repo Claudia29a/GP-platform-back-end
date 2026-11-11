@@ -25,14 +25,17 @@ public class IntakeService {
 	private final QueueService queueService;
 	private final PrivacyConsentService privacyConsentService;
 	private final DataProtection protection;
+	private final AccessLogService accessLogService;
 
 	public IntakeService(IntakeRepository intakeRepository, SeverityCalculator severityCalculator,
-			QueueService queueService, PrivacyConsentService privacyConsentService, DataProtection protection) {
+			QueueService queueService, PrivacyConsentService privacyConsentService, DataProtection protection,
+			AccessLogService accessLogService) {
 		this.intakeRepository = intakeRepository;
 		this.severityCalculator = severityCalculator;
 		this.queueService = queueService;
 		this.privacyConsentService = privacyConsentService;
 		this.protection = protection;
+		this.accessLogService = accessLogService;
 	}
 
 	/**
@@ -77,14 +80,21 @@ public class IntakeService {
 				: intakeRepository.findAllByPatientIdOrderBySubmittedAtAsc(protection.hash(user.id()));
 	}
 
-	/** Someone else's question answers 404 for a patient, so its existence is not revealed. */
-	@Transactional(readOnly = true)
+	/**
+	 * Someone else's question answers 404 for a patient, so its existence is not revealed. When staff open a
+	 * question, that is recorded in the access log.
+	 */
+	@Transactional
 	public Intake findById(UUID id, CurrentUser user) {
 		Optional<Intake> intake = user.isStaff()
 				? intakeRepository.findById(id)
 				: intakeRepository.findByIdAndPatientId(id, protection.hash(user.id()));
-		return intake.orElseThrow(
+		Intake found = intake.orElseThrow(
 				() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Intake " + id + " not found"));
+		if (user.isStaff()) {
+			accessLogService.record(id, user);
+		}
+		return found;
 	}
 
 	/** Trims free text; an empty answer is stored as no answer. */
