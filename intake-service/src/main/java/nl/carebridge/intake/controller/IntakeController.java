@@ -16,10 +16,12 @@ import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.validation.Valid;
 
+import nl.carebridge.intake.dto.AccessLogResponse;
 import nl.carebridge.intake.dto.IntakeResponse;
 import nl.carebridge.intake.dto.SubmitIntakeRequest;
 import nl.carebridge.intake.model.Intake;
 import nl.carebridge.intake.security.CurrentUserResolver;
+import nl.carebridge.intake.service.AccessLogService;
 import nl.carebridge.intake.service.IntakeService;
 
 @RestController
@@ -27,10 +29,12 @@ import nl.carebridge.intake.service.IntakeService;
 public class IntakeController {
 
 	private final IntakeService intakeService;
+	private final AccessLogService accessLogService;
 	private final CurrentUserResolver currentUserResolver;
 
-	public IntakeController(IntakeService intakeService, CurrentUserResolver currentUserResolver) {
+	public IntakeController(IntakeService intakeService, CurrentUserResolver currentUserResolver, AccessLogService accessLogService) {
 		this.intakeService = intakeService;
+		this.accessLogService = accessLogService;
 		this.currentUserResolver = currentUserResolver;
 	}
 
@@ -54,5 +58,11 @@ public class IntakeController {
 	@GetMapping("/{id}")
 	public IntakeResponse findById(@AuthenticationPrincipal Jwt token, @PathVariable UUID id) {
 		return IntakeResponse.from(intakeService.findById(id, currentUserResolver.resolve(token)));
+	}
+
+	/** Who opened this question and when, newest first. Only the GP may read it (GDPR Art. 32; NEN 7513). */
+	@GetMapping("/{id}/access-log")
+	public List<AccessLogResponse> accessLog(@PathVariable UUID id) {
+		return accessLogService.entriesFor(id);
 	}
 }

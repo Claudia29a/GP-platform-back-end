@@ -78,6 +78,13 @@ public class QueueService {
 		return ordered;
 	}
 
+	/** After questions were deleted: the rest keep their order and get positions 1, 2, 3 again. */
+	@Transactional
+	public void closeGaps() {
+		intakeRepository.lockQueue(QUEUE_LOCK);
+		renumber(currentQueue());
+	}
+
 	/** Only staff can put a question above a more severe one, so that is what marks it as moved. */
 	private static void markMovedByHand(List<Intake> ordered) {
 		int highestBelow = -1;

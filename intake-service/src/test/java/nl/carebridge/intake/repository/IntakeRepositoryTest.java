@@ -20,10 +20,12 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
 import nl.carebridge.intake.encryption.EncryptionTestConfig;
+import nl.carebridge.intake.model.AccessLogEntry;
 import nl.carebridge.intake.model.ComplaintArea;
 import nl.carebridge.intake.model.ComplaintDuration;
 import nl.carebridge.intake.model.Intake;
 import nl.carebridge.intake.model.Symptom;
+import nl.carebridge.intake.security.Role;
 
 /**
  * Runs against a real PostgreSQL in Docker, with the Flyway migrations, so the schema and the
@@ -73,6 +75,28 @@ class IntakeRepositoryTest {
 
 		assertThat(row).doesNotContainNull().allSatisfy(column -> assertThat(column.toString())
 				.doesNotContain("anna", "CHEST", "FOUR_TO", "FEVER", "Inhaler", "true").hasSizeGreaterThan(20));
+	}
+
+	@Test
+	void theAccessLogStoresTheStaffNameEncrypted() {
+		entityManager.persist(new AccessLogEntry(java.util.UUID.randomUUID(), "staff-hash", "Sam Bakker", Role.GP_ASSISTANT, Instant.now()));
+		entityManager.flush();
+
+		Object stored = entityManager.getEntityManager().createNativeQuery("SELECT staff_name FROM access_log").getSingleResult();
+
+		assertThat(stored.toString()).doesNotContain("Sam").hasSizeGreaterThan(20);
+	}
+
+	@Test
+	void deletingAPatientsQuestionsLeavesOtherPatientsAlone() {
+		repository.save(intake("hash-anna", Set.of(Symptom.FEVER), Instant.now()));
+		repository.save(intake("hash-bram", Set.of(Symptom.FEVER), Instant.now()));
+		entityManager.flush();
+
+		repository.deleteAllByPatientId("hash-anna");
+		entityManager.flush();
+
+		assertThat(repository.findAll()).extracting(Intake::getPatientId).containsExactly("hash-bram");
 	}
 
 	@Test

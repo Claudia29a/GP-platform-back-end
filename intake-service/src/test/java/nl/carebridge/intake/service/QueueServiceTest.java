@@ -146,6 +146,19 @@ class QueueServiceTest {
 	}
 
 	@Test
+	void closingGapsKeepsTheOrderUnderTheLock() {
+		Intake a = queued(2, 80);
+		Intake b = queued(5, 40);
+		givenQueue(a, b);
+
+		queueService.closeGaps();
+
+		verify(intakeRepository).lockQueue(anyLong());
+		assertThat(a.getQueuePosition()).isEqualTo(1);
+		assertThat(b.getQueuePosition()).isEqualTo(2);
+	}
+
+	@Test
 	void reorderSavesTheGivenOrder() {
 		Intake a = queued(1, 80);
 		Intake b = queued(2, 50);

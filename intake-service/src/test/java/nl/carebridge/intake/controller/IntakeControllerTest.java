@@ -62,6 +62,9 @@ class IntakeControllerTest {
 	@MockitoBean
 	private PrivacyConsentService privacyConsentService;
 
+	@MockitoBean
+	private nl.carebridge.intake.service.AccessLogService accessLogService;
+
 	@Test
 	void requestsWithoutTokenAreUnauthorized() throws Exception {
 		mockMvc.perform(get("/intakes")).andExpect(status().isUnauthorized());

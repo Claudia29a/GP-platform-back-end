@@ -18,6 +18,8 @@ public interface IntakeRepository extends JpaRepository<Intake, UUID> {
 
 	Optional<Intake> findByIdAndPatientId(UUID id, String patientId);
 
+	void deleteAllByPatientId(String patientId);
+
 	/**
 	 * Takes a database lock until the transaction ends, so only one change to the queue runs at a
 	 * time, also across several copies of this service (Story 4 TAC6).
