@@ -6,6 +6,8 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.authorization.AuthorityAuthorizationManager;
+import org.springframework.security.authorization.AuthorizationManagers;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
@@ -31,7 +33,10 @@ public class SecurityConfig {
 		return http
 				.authorizeHttpRequests(auth -> auth
 						.requestMatchers("/actuator/health/**").permitAll()
-						.requestMatchers(HttpMethod.POST, "/intakes").hasRole(Role.PATIENT.name())
+						// A question needs a patient whose email address is proven, so it cannot come from a fake address.
+						.requestMatchers(HttpMethod.POST, "/intakes").access(AuthorizationManagers.allOf(
+								AuthorityAuthorizationManager.hasRole(Role.PATIENT.name()),
+								AuthorityAuthorizationManager.hasAuthority(CurrentUserResolver.EMAIL_VERIFIED)))
 						.requestMatchers("/privacy-consent").hasRole(Role.PATIENT.name())
 						.requestMatchers("/queue/**").hasAnyRole(Role.GP_ASSISTANT.name(), Role.GP.name())
 						.anyRequest().authenticated())

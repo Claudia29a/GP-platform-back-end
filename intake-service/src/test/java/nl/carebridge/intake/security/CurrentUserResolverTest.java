@@ -65,7 +65,16 @@ class CurrentUserResolverTest {
 	@Test
 	void authorityMatchesRole() {
 		assertThat(resolver.authorities(token("google-sam", "Sam", "assistant@example.com")))
-				.extracting(Object::toString).containsExactly("ROLE_GP_ASSISTANT");
+				.extracting(Object::toString).containsExactly("ROLE_GP_ASSISTANT", "EMAIL_VERIFIED");
+	}
+
+	@Test
+	void anUnverifiedAddressGetsNoVerifiedAuthority() {
+		Jwt unverified = Jwt.withTokenValue("token").header("alg", "RS256").subject("account-1")
+				.claim("email", "anna@example.com").claim("email_verified", false).build();
+
+		assertThat(resolver.authorities(unverified)).extracting(Object::toString).containsExactly("ROLE_PATIENT");
+		assertThat(resolver.isEmailVerified(unverified)).isFalse();
 	}
 
 	private static Jwt token(String subject, String name, String email) {

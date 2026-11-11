@@ -25,6 +25,6 @@ public class UserController {
 	@GetMapping("/me")
 	public UserResponse me(@AuthenticationPrincipal Jwt token) {
 		CurrentUser user = currentUserResolver.resolve(token);
-		return UserResponse.from(user, privacyConsentService.isNeeded(user));
+		return UserResponse.from(user, currentUserResolver.isEmailVerified(token), privacyConsentService.isNeeded(user));
 	}
 }

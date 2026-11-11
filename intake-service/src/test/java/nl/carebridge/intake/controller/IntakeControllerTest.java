@@ -185,7 +185,23 @@ class IntakeControllerTest {
 		mockMvc.perform(get("/me").with(signedIn("google-sam", "Sam", "assistant@example.com")))
 				.andExpect(jsonPath("$.role").value("GP_ASSISTANT"));
 		mockMvc.perform(get("/me").with(signedIn("google-anna", "Anna de Vries", "anna@example.com")))
-				.andExpect(jsonPath("$.role").value("PATIENT"));
+				.andExpect(jsonPath("$.role").value("PATIENT"))
+				.andExpect(jsonPath("$.emailVerified").value(true));
+	}
+
+	@Test
+	void aPatientWithAnUnverifiedEmailCannotSendAQuestion() throws Exception {
+		mockMvc.perform(post("/intakes").with(unverified("account-1", "Anna", "anna@example.com"))
+						.contentType(MediaType.APPLICATION_JSON).content(TestIntakes.VALID_JSON))
+				.andExpect(status().isForbidden());
+		mockMvc.perform(get("/me").with(unverified("account-1", "Anna", "anna@example.com")))
+				.andExpect(jsonPath("$.emailVerified").value(false));
+		verify(intakeService, never()).submit(any(), any());
+	}
+
+	private JwtRequestPostProcessor unverified(String id, String name, String email) {
+		return jwt().jwt(token -> token.subject(id).claim("name", name).claim("email", email).claim("email_verified", false))
+				.authorities(currentUserResolver::authorities);
 	}
 
 	/** A signed-in user whose role is worked out exactly as in production. */
