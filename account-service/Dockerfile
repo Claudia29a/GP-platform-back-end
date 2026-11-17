@@ -15,7 +15,7 @@ RUN java -Djarmode=tools -jar build/libs/*.jar extract --destination /workspace/
     && mv /workspace/extracted/*.jar /workspace/extracted/app.jar
 
 # Stage 2: only the Java runtime and the application.
-FROM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:21-jre-alpine AS runtime
 # The base image can lag behind Alpine's security fixes.
 RUN apk upgrade --no-cache && addgroup -S app && adduser -S app -G app && mkdir /app && chown app:app /app
 USER app
