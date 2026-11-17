@@ -56,7 +56,7 @@ class ReplyControllerTest {
 	@Test
 	void theGpRepliesAndGetsTheReplyBack() throws Exception {
 		when(replyService.reply(eq(QUESTION), eq("Use the cream."), eq(GP), any()))
-				.thenReturn(new Reply(QUESTION, "hash", "Dr. Jansen", "Use the cream.", Instant.parse("2026-11-17T10:00:00Z")));
+				.thenReturn(new Reply(QUESTION, "hash", "Dr. Jansen", "Use the cream.", Instant.parse("2026-11-17T10:00:00Z"), Instant.parse("2026-11-01T09:00:00Z")));
 
 		mockMvc.perform(post("/questions/" + QUESTION + "/replies").with(user("google-gp", "Dr. Jansen", "gp@example.com"))
 						.contentType(MediaType.APPLICATION_JSON).content("{\"text\": \"Use the cream.\"}"))
@@ -91,7 +91,7 @@ class ReplyControllerTest {
 	@Test
 	void anyoneWhoMaySeeTheQuestionReadsItsReplies() throws Exception {
 		when(replyService.replies(eq(QUESTION), any(), eq("Bearer token")))
-				.thenReturn(List.of(new Reply(QUESTION, "hash", "Dr. Jansen", "Use the cream.", Instant.parse("2026-11-17T10:00:00Z"))));
+				.thenReturn(List.of(new Reply(QUESTION, "hash", "Dr. Jansen", "Use the cream.", Instant.parse("2026-11-17T10:00:00Z"), Instant.parse("2026-11-01T09:00:00Z"))));
 
 		mockMvc.perform(get("/questions/" + QUESTION + "/replies").with(user("google-anna", "Anna", "anna@example.com")))
 				.andExpect(status().isOk())

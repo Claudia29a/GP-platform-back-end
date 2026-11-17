@@ -1,5 +1,8 @@
 package nl.carebridge.messaging.client;
 
+import java.time.Instant;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -20,7 +23,7 @@ public class IntakeClient {
 
 	/** To whom the notification goes; the Intake Service sends no health details here. */
 	@JsonIgnoreProperties(ignoreUnknown = true)
-	public record Question(UUID id, String patientName, String patientEmail) {
+	public record Question(UUID id, String patientName, String patientEmail, Instant submittedAt) {
 	}
 
 	private final RestClient intake;
@@ -30,6 +33,16 @@ public class IntakeClient {
 			@Value("${carebridge.gateway.secret}") String gatewaySecret) {
 		this.intake = builder.baseUrl(intakeApiUrl).build();
 		this.gatewaySecret = gatewaySecret;
+	}
+
+	/** The IDs of the signed-in patient's own questions; never their health details. */
+	public List<UUID> myQuestionIds(String authorization) {
+		UUID[] ids = intake.get().uri("/me/question-ids")
+				.header("Authorization", authorization)
+				.header("X-CareBridge-Gateway", gatewaySecret)
+				.retrieve()
+				.body(UUID[].class);
+		return ids == null ? List.of() : Arrays.asList(ids);
 	}
 
 	public Optional<Question> find(UUID questionId, String authorization) {

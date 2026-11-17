@@ -23,7 +23,7 @@ import nl.carebridge.messaging.client.IntakeClient.Question;
 @Tag("unit")
 class ReplyNotifierTest {
 
-	private static final Question QUESTION = new Question(UUID.fromString("3f1c2a4e-0000-4000-8000-000000000001"), "Anna de Vries", "anna@example.com");
+	private static final Question QUESTION = new Question(UUID.fromString("3f1c2a4e-0000-4000-8000-000000000001"), "Anna de Vries", "anna@example.com", java.time.Instant.parse("2026-11-01T09:00:00Z"));
 
 	@Mock
 	private JavaMailSender sender;
