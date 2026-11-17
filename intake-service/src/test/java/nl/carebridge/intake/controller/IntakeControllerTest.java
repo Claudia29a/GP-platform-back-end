@@ -207,6 +207,19 @@ class IntakeControllerTest {
 				.authorities(currentUserResolver::authorities);
 	}
 
+	@Test
+	void theRecipientOfAReplyHoldsOnlyTheNameAndEmail() throws Exception {
+		Intake intake = sampleIntake("Itchy rash on my left arm");
+		when(intakeService.findRecipient(intake.getId(), new CurrentUser("google-gp", "Dr. Jansen", "gp@example.com", Role.GP)))
+				.thenReturn(intake);
+
+		mockMvc.perform(get("/intakes/" + intake.getId() + "/recipient").with(signedIn("google-gp", "Dr. Jansen", "gp@example.com")))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.patientEmail").exists())
+				.andExpect(jsonPath("$.description").doesNotExist())
+				.andExpect(jsonPath("$.severity").doesNotExist());
+	}
+
 	/** A signed-in user whose role is worked out exactly as in production. */
 	private JwtRequestPostProcessor signedIn(String id, String name, String email) {
 		return jwt().jwt(token -> token.subject(id).claim("name", name).claim("email", email).claim("email_verified", true))

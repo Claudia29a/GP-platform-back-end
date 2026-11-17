@@ -2,12 +2,12 @@
 version: 2
 updates:
   - package-ecosystem: gradle
-    directories: ['/intake-service', '/account-service']
+    directories: ['/intake-service', '/account-service', '/messaging-service']
     schedule: { interval: weekly }
     open-pull-requests-limit: 3
     groups: { all: { patterns: ['*'] } }
   - package-ecosystem: docker
-    directories: ['/intake-service', '/account-service']
+    directories: ['/intake-service', '/account-service', '/messaging-service']
     schedule: { interval: weekly }
     open-pull-requests-limit: 2
   - package-ecosystem: github-actions

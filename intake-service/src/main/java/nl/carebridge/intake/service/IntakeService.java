@@ -86,15 +86,27 @@ public class IntakeService {
 	 */
 	@Transactional
 	public Intake findById(UUID id, CurrentUser user) {
-		Optional<Intake> intake = user.isStaff()
-				? intakeRepository.findById(id)
-				: intakeRepository.findByIdAndPatientId(id, protection.hash(user.id()));
-		Intake found = intake.orElseThrow(
-				() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Intake " + id + " not found"));
+		Intake found = visible(id, user);
 		if (user.isStaff()) {
 			accessLogService.record(id, user);
 		}
 		return found;
+	}
+
+	/**
+	 * For the Messaging Service: the same access rules, but not recorded as opening the question, because it only
+	 * checks who may see the replies and to whom the notification goes.
+	 */
+	@Transactional(readOnly = true)
+	public Intake findRecipient(UUID id, CurrentUser user) {
+		return visible(id, user);
+	}
+
+	private Intake visible(UUID id, CurrentUser user) {
+		Optional<Intake> intake = user.isStaff()
+				? intakeRepository.findById(id)
+				: intakeRepository.findByIdAndPatientId(id, protection.hash(user.id()));
+		return intake.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Intake " + id + " not found"));
 	}
 
 	/** Trims free text; an empty answer is stored as no answer. */
