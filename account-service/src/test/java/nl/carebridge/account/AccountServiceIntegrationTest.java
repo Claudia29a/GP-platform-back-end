@@ -14,6 +14,10 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.boot.webmvc.test.autoconfigure.MockMvcBuilderCustomizer;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
@@ -33,6 +37,7 @@ import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.RSAKey;
 
 import nl.carebridge.account.encryption.DataProtection;
+import nl.carebridge.account.gateway.GatewayFilter;
 import nl.carebridge.account.repository.AccountRepository;
 
 /**
@@ -41,8 +46,19 @@ import nl.carebridge.account.repository.AccountRepository;
 @SpringBootTest
 @AutoConfigureMockMvc
 @Testcontainers
+@Import(AccountServiceIntegrationTest.ThroughTheWebsite.class)
 @Tag("integration")
 class AccountServiceIntegrationTest {
+
+	/** Every request carries the header the website's nginx adds, as in real use; GatewayFilterTest covers the refusal. */
+	@TestConfiguration
+	static class ThroughTheWebsite {
+
+		@Bean
+		MockMvcBuilderCustomizer websiteHeader() {
+			return builder -> builder.defaultRequest(get("/").header(GatewayFilter.HEADER, "test-gateway-secret"));
+		}
+	}
 
 	@Container
 	@ServiceConnection

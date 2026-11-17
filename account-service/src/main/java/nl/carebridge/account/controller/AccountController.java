@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -18,6 +19,7 @@ import nl.carebridge.account.dto.AccountDataResponse;
 import nl.carebridge.account.dto.AccountResponse;
 import nl.carebridge.account.dto.LoginRequest;
 import nl.carebridge.account.dto.RegisterRequest;
+import nl.carebridge.account.dto.RenameRequest;
 import nl.carebridge.account.dto.ResendRequest;
 import nl.carebridge.account.dto.TokenResponse;
 import nl.carebridge.account.dto.VerifyRequest;
@@ -93,6 +95,13 @@ public class AccountController {
 	@GetMapping("/accounts/me")
 	public AccountDataResponse me(@RequestHeader(name = "Authorization", required = false) String authorization) {
 		return AccountDataResponse.from(accountService.find(ownTokens.accountId(authorization)));
+	}
+
+	/** "Correct my name": returns a new token with the new name, so the other services see it straight away. */
+	@PutMapping("/accounts/me")
+	public TokenResponse rename(@RequestHeader(name = "Authorization", required = false) String authorization,
+			@Valid @RequestBody RenameRequest request) {
+		return token(accountService.rename(ownTokens.accountId(authorization), request.name()));
 	}
 
 	/** "Delete my account": only with the user's own token. */

@@ -88,6 +88,34 @@ class IntakeRepositoryTest {
 	}
 
 	@Test
+	void theRetentionCleanUpDeletesOnlyQuestionsOlderThanTheLimit() {
+		Instant now = Instant.now();
+		repository.save(intake("hash-old", Set.of(Symptom.FEVER), now.minus(java.time.Duration.ofDays(200))));
+		repository.save(intake("hash-new", Set.of(Symptom.FEVER), now.minus(java.time.Duration.ofDays(10))));
+		entityManager.flush();
+
+		assertThat(repository.deleteSubmittedBefore(now.minus(java.time.Duration.ofDays(183)))).isEqualTo(1);
+		entityManager.clear();
+
+		assertThat(repository.findAll()).extracting(Intake::getPatientId).containsExactly("hash-new");
+	}
+
+	@Test
+	void renamingChangesTheNameOnlyOnThatPatientsQuestions() {
+		repository.save(intake("hash-anna", Set.of(Symptom.FEVER), Instant.now()));
+		repository.save(intake("hash-bram", Set.of(Symptom.FEVER), Instant.now()));
+		entityManager.flush();
+		entityManager.clear();
+
+		repository.findAllByPatientIdOrderBySubmittedAtAsc("hash-anna").forEach(question -> question.setPatientName("Anna Jansen"));
+		entityManager.flush();
+		entityManager.clear();
+
+		assertThat(repository.findAll()).extracting(Intake::getPatientName)
+				.containsExactlyInAnyOrder("Anna Jansen", "Patient hash-bram");
+	}
+
+	@Test
 	void deletingAPatientsQuestionsLeavesOtherPatientsAlone() {
 		repository.save(intake("hash-anna", Set.of(Symptom.FEVER), Instant.now()));
 		repository.save(intake("hash-bram", Set.of(Symptom.FEVER), Instant.now()));

@@ -31,7 +31,7 @@ ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75 -XX:+UseSerialGC -XX:TieredStopAt
 # Faster start-up (class data sharing): one practice start during the build saves the loaded classes to app.jsa,
 # and every real start reads them from there. The practice start stops right after start-up and uses made-up
 # settings: it never connects to a database or another service.
-RUN INTAKE_DB_URL=jdbc:postgresql://localhost:5432/training INTAKE_DB_USER=training INTAKE_DB_PASSWORD=training \
+RUN GATEWAY_SECRET=training INTAKE_DB_URL=jdbc:postgresql://localhost:5432/training INTAKE_DB_USER=training INTAKE_DB_PASSWORD=training \
     GOOGLE_CLIENT_ID=training ACCOUNT_JWKS_URI=http://localhost:1/training \
     INTAKE_DATA_KEY=MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY= \
     java -XX:ArchiveClassesAtExit=app.jsa -Dspring.context.exit=onRefresh \
