@@ -18,7 +18,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 @Component
 public class IntakeClient {
 
-	/** The parts of a question this service needs: to whom the notification goes. */
+	/** To whom the notification goes; the Intake Service sends no health details here. */
 	@JsonIgnoreProperties(ignoreUnknown = true)
 	public record Question(UUID id, String patientName, String patientEmail) {
 	}
@@ -34,7 +34,7 @@ public class IntakeClient {
 
 	public Optional<Question> find(UUID questionId, String authorization) {
 		try {
-			return Optional.ofNullable(intake.get().uri("/intakes/{id}", questionId)
+			return Optional.ofNullable(intake.get().uri("/intakes/{id}/recipient", questionId)
 					.header("Authorization", authorization)
 					// The Intake Service only accepts requests that come through the website or carry its secret.
 					.header("X-CareBridge-Gateway", gatewaySecret)

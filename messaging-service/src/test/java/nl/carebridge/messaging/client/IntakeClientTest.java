@@ -33,7 +33,7 @@ class IntakeClientTest {
 
 	@Test
 	void asksTheIntakeServiceWithTheUsersOwnTokenAndTheWebsiteSecret() {
-		intake.expect(requestTo("http://intake.test/intakes/" + QUESTION))
+		intake.expect(requestTo("http://intake.test/intakes/" + QUESTION + "/recipient"))
 				.andExpect(header("Authorization", "Bearer user.token"))
 				.andExpect(header("X-CareBridge-Gateway", "the-gateway-secret"))
 				.andRespond(withSuccess("""
@@ -49,7 +49,7 @@ class IntakeClientTest {
 
 	@Test
 	void aQuestionTheUserMayNotSeeIsNotFound() {
-		intake.expect(requestTo("http://intake.test/intakes/" + QUESTION)).andRespond(withStatus(HttpStatus.NOT_FOUND));
+		intake.expect(requestTo("http://intake.test/intakes/" + QUESTION + "/recipient")).andRespond(withStatus(HttpStatus.NOT_FOUND));
 
 		assertThat(client.find(QUESTION, "Bearer user.token")).isEmpty();
 	}

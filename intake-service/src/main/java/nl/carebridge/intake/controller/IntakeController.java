@@ -18,6 +18,7 @@ import jakarta.validation.Valid;
 
 import nl.carebridge.intake.dto.AccessLogResponse;
 import nl.carebridge.intake.dto.IntakeResponse;
+import nl.carebridge.intake.dto.RecipientResponse;
 import nl.carebridge.intake.dto.SubmitIntakeRequest;
 import nl.carebridge.intake.model.Intake;
 import nl.carebridge.intake.security.CurrentUserResolver;
@@ -58,6 +59,12 @@ public class IntakeController {
 	@GetMapping("/{id}")
 	public IntakeResponse findById(@AuthenticationPrincipal Jwt token, @PathVariable UUID id) {
 		return IntakeResponse.from(intakeService.findById(id, currentUserResolver.resolve(token)));
+	}
+
+	/** For the Messaging Service: may this user see the question, and who gets the reply notification. */
+	@GetMapping("/{id}/recipient")
+	public RecipientResponse recipient(@AuthenticationPrincipal Jwt token, @PathVariable UUID id) {
+		return RecipientResponse.from(intakeService.findRecipient(id, currentUserResolver.resolve(token)));
 	}
 
 	/** Who opened this question and when, newest first. Only the GP may read it (GDPR Art. 32; NEN 7513). */

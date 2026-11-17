@@ -103,11 +103,62 @@ services:
       start_period: 30s
       retries: 5
 
+  messaging-db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: messaging
+      POSTGRES_USER: messaging
+      POSTGRES_PASSWORD: messaging
+    ports:
+      - "5434:5432"
+    volumes:
+      - messaging-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U messaging -d messaging"]
+      interval: 5s
+      retries: 10
+
+  # The GP's replies (Messaging Service). It asks the Intake Service who may see a question.
+  messaging-service:
+    build: ./messaging-service
+    environment:
+      MESSAGING_DB_URL: jdbc:postgresql://messaging-db:5432/messaging
+      MESSAGING_DB_USER: messaging
+      MESSAGING_DB_PASSWORD: messaging
+      MESSAGING_DATA_KEY: ${MESSAGING_DATA_KEY:?Set MESSAGING_DATA_KEY in .env, see .env.example}
+      GATEWAY_SECRET: ${GATEWAY_SECRET:?Set GATEWAY_SECRET in .env, see .env.example}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:?Set GOOGLE_CLIENT_ID in .env, see .env.example}
+      ACCOUNT_JWKS_URI: http://account-service:8080/.well-known/jwks.json
+      GP_EMAILS: ${GP_EMAILS:-}
+      ASSISTANT_EMAILS: ${ASSISTANT_EMAILS:-}
+      INTAKE_API_URL: http://intake-service:8080
+      MAIL_HOST: mailpit
+      MAIL_PORT: 1025
+      MAIL_USERNAME: ""
+      MAIL_PASSWORD: ""
+      MAIL_AUTH: "false"
+      MAIL_STARTTLS_REQUIRED: "false"
+      MAIL_FROM: CareBridge <no-reply@carebridge.test>
+      SITE_URL: http://localhost:4200
+    ports:
+      - "8082:8080"
+    depends_on:
+      messaging-db:
+        condition: service_healthy
+      intake-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health/readiness || exit 1"]
+      interval: 10s
+      start_period: 30s
+      retries: 5
+
   frontend:
     build: ../GP-platform-front-end
     environment:
       API_URL: http://intake-service:8080
       ACCOUNT_API_URL: http://account-service:8080
+      MESSAGING_API_URL: http://messaging-service:8080
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:?Set GOOGLE_CLIENT_ID in .env, see .env.example}
       GATEWAY_SECRET: ${GATEWAY_SECRET:?Set GATEWAY_SECRET in .env, see .env.example}
     ports:
@@ -119,3 +170,4 @@ services:
 volumes:
   intake-db-data:
   account-db-data:
+  messaging-db-data:

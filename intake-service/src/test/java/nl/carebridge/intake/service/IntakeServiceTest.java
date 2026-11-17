@@ -197,4 +197,17 @@ class IntakeServiceTest {
 				.isInstanceOfSatisfying(ResponseStatusException.class,
 						ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND));
 	}
+
+	@Test
+	void theRecipientCheckFollowsTheSameRulesButIsNotRecordedAsOpeningTheQuestion() {
+		UUID id = UUID.randomUUID();
+		Intake intake = new Intake();
+		when(intakeRepository.findById(id)).thenReturn(Optional.of(intake));
+		when(intakeRepository.findByIdAndPatientId(id, protection.hash("google-anna"))).thenReturn(Optional.empty());
+
+		assertThat(intakeService.findRecipient(id, GP)).isSameAs(intake);
+		assertThatThrownBy(() -> intakeService.findRecipient(id, PATIENT)).isInstanceOf(ResponseStatusException.class);
+
+		verify(accessLogService, never()).record(any(), any());
+	}
 }
