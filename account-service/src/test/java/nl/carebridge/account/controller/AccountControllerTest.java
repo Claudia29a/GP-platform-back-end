@@ -251,4 +251,28 @@ class AccountControllerTest {
 		verify(accountService, never()).register(any());
 		verify(verificationService, never()).sendNewCode(any());
 	}
+
+	@Test
+	void anAccountCorrectsItsNameAndGetsATokenWithTheNewName() throws Exception {
+		var renamed = account("anna@example.com", "$2a$10$hash");
+		renamed.setName("Anna Jansen");
+		when(ownTokens.accountId("Bearer own.token")).thenReturn(renamed.getId());
+		when(accountService.rename(renamed.getId(), "Anna Jansen")).thenReturn(renamed);
+		when(tokenService.issue(renamed)).thenReturn("renamed.jwt.token");
+
+		mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/accounts/me")
+						.header("Authorization", "Bearer own.token").contentType(MediaType.APPLICATION_JSON)
+						.content("{\"name\": \"Anna Jansen\"}"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.token").value("renamed.jwt.token"));
+	}
+
+	@Test
+	void anEmptyNameIsRefused() throws Exception {
+		mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/accounts/me")
+						.header("Authorization", "Bearer own.token").contentType(MediaType.APPLICATION_JSON)
+						.content("{\"name\": \" \"}"))
+				.andExpect(status().isBadRequest());
+		verify(accountService, never()).rename(any(), any());
+	}
 }

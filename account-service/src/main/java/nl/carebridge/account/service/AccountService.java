@@ -100,6 +100,15 @@ public class AccountService {
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "This account no longer exists"));
 	}
 
+	/** Corrects the name (GDPR Art. 16). */
+	@Transactional
+	public Account rename(UUID id, String name) {
+		Account account = find(id);
+		account.setName(name.strip());
+		accountRepository.save(account);
+		return account;
+	}
+
 	/** The right to be forgotten (GDPR Art. 17): the account and everything stored with it are removed. */
 	@Transactional
 	public void delete(UUID id) {

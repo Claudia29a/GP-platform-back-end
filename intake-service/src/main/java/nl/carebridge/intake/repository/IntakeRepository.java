@@ -1,10 +1,12 @@
 package nl.carebridge.intake.repository;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -19,6 +21,10 @@ public interface IntakeRepository extends JpaRepository<Intake, UUID> {
 	Optional<Intake> findByIdAndPatientId(UUID id, String patientId);
 
 	void deleteAllByPatientId(String patientId);
+
+	@Modifying
+	@Query("delete from Intake i where i.submittedAt < :before")
+	int deleteSubmittedBefore(@Param("before") Instant before);
 
 	/**
 	 * Takes a database lock until the transaction ends, so only one change to the queue runs at a

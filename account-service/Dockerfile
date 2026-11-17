@@ -31,7 +31,7 @@ ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75 -XX:+UseSerialGC -XX:TieredStopAt
 # Faster start-up (class data sharing): one practice start during the build saves the loaded classes to app.jsa,
 # and every real start reads them from there. The practice start stops right after start-up and uses made-up
 # settings: it never connects to a database or a mail server.
-RUN ACCOUNT_DB_URL=jdbc:postgresql://localhost:5432/training ACCOUNT_DB_USER=training ACCOUNT_DB_PASSWORD=training \
+RUN GATEWAY_SECRET=training ACCOUNT_DB_URL=jdbc:postgresql://localhost:5432/training ACCOUNT_DB_USER=training ACCOUNT_DB_PASSWORD=training \
     ACCOUNT_TOKEN_PRIVATE_KEY= ACCOUNT_DATA_KEY=MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY= \
     MAIL_HOST=localhost MAIL_PORT=1 MAIL_USERNAME= MAIL_PASSWORD= MAIL_AUTH=false MAIL_STARTTLS_REQUIRED=false \
     MAIL_FROM=training@carebridge.test \

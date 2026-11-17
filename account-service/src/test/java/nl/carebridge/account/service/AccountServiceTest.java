@@ -168,4 +168,12 @@ class AccountServiceTest {
 		assertThatThrownBy(() -> accountService.find(gone)).isInstanceOf(ResponseStatusException.class)
 				.satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND));
 	}
+
+	@Test
+	void renamingStoresTheTrimmedName() {
+		Account anna = account("anna@example.com", "$2a$10$hash");
+		when(accountRepository.findById(anna.getId())).thenReturn(Optional.of(anna));
+
+		assertThat(accountService.rename(anna.getId(), "  Anna Jansen ").getName()).isEqualTo("Anna Jansen");
+	}
 }

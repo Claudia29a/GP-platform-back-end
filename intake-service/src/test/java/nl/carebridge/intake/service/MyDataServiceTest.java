@@ -95,4 +95,16 @@ class MyDataServiceTest {
 		order.verify(consentRepository).deleteById(owner);
 		order.verify(queueService).closeGaps();
 	}
+
+	@Test
+	void renamingChangesTheNameOnEveryQuestionOfThePatient() {
+		Intake first = new Intake();
+		Intake second = new Intake();
+		when(intakeRepository.findAllByPatientIdOrderBySubmittedAtAsc(owner)).thenReturn(List.of(first, second));
+
+		service.rename(PATIENT, "  Anna Jansen ");
+
+		assertThat(first.getPatientName()).isEqualTo("Anna Jansen");
+		assertThat(second.getPatientName()).isEqualTo("Anna Jansen");
+	}
 }

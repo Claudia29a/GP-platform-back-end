@@ -51,6 +51,13 @@ public class MyDataService {
 						.toList());
 	}
 
+	/** Corrects the patient's name on all their questions (GDPR Art. 16). */
+	@Transactional
+	public void rename(CurrentUser patient, String name) {
+		String owner = protection.hash(patient.id());
+		intakeRepository.findAllByPatientIdOrderBySubmittedAtAsc(owner).forEach(question -> question.setPatientName(name.strip()));
+	}
+
 	/** Removes the patient's questions and permission; the remaining queue closes up. */
 	@Transactional
 	public void delete(CurrentUser patient) {

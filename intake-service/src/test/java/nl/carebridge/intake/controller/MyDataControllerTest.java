@@ -8,6 +8,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -20,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.JwtRequestPostProcessor;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -102,6 +104,27 @@ class MyDataControllerTest {
 				.andExpect(status().isForbidden());
 
 		verify(accessLogService, never()).record(eq(id), any());
+	}
+
+	@Test
+	void aPatientCorrectsTheirName() throws Exception {
+		mockMvc.perform(put("/me/data/name").with(user("google-anna", "Anna de Vries", "anna@example.com"))
+						.contentType(MediaType.APPLICATION_JSON).content("{\"name\": \"Anna Jansen\"}"))
+				.andExpect(status().isNoContent());
+
+		verify(myDataService).rename(PATIENT, "Anna Jansen");
+	}
+
+	@Test
+	void anEmptyOrTooLongNameIsRefused() throws Exception {
+		mockMvc.perform(put("/me/data/name").with(user("google-anna", "Anna de Vries", "anna@example.com"))
+						.contentType(MediaType.APPLICATION_JSON).content("{\"name\": \"  \"}"))
+				.andExpect(status().isBadRequest());
+		mockMvc.perform(put("/me/data/name").with(user("google-anna", "Anna de Vries", "anna@example.com"))
+						.contentType(MediaType.APPLICATION_JSON).content("{\"name\": \"" + "x".repeat(101) + "\"}"))
+				.andExpect(status().isBadRequest());
+
+		verify(myDataService, never()).rename(any(), any());
 	}
 
 	private JwtRequestPostProcessor user(String id, String name, String email) {

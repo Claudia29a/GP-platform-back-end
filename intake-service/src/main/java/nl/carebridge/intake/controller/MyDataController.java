@@ -5,11 +5,15 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import jakarta.validation.Valid;
 import nl.carebridge.intake.dto.MyDataResponse;
+import nl.carebridge.intake.dto.RenameRequest;
 import nl.carebridge.intake.security.CurrentUserResolver;
 import nl.carebridge.intake.service.MyDataService;
 
@@ -29,6 +33,12 @@ public class MyDataController {
 	@GetMapping
 	public MyDataResponse export(@AuthenticationPrincipal Jwt token) {
 		return myDataService.export(currentUserResolver.resolve(token));
+	}
+
+	@PutMapping("/name")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	public void rename(@AuthenticationPrincipal Jwt token, @Valid @RequestBody RenameRequest request) {
+		myDataService.rename(currentUserResolver.resolve(token), request.name());
 	}
 
 	@DeleteMapping

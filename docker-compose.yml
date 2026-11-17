@@ -49,6 +49,8 @@ services:
       # Local only: without a key the service makes a temporary one, so a restart signs everyone out.
       ACCOUNT_TOKEN_PRIVATE_KEY: ${ACCOUNT_TOKEN_PRIVATE_KEY:-}
       ACCOUNT_DATA_KEY: ${ACCOUNT_DATA_KEY:?Set ACCOUNT_DATA_KEY in .env, see .env.example}
+      # The secret header the website adds; requests without it are refused.
+      GATEWAY_SECRET: ${GATEWAY_SECRET:?Set GATEWAY_SECRET in .env, see .env.example}
       # Emails go to Mailpit, which catches them all: nothing reaches a real inbox.
       MAIL_HOST: mailpit
       MAIL_PORT: 1025
@@ -81,6 +83,7 @@ services:
       INTAKE_DB_USER: intake
       INTAKE_DB_PASSWORD: intake
       INTAKE_DATA_KEY: ${INTAKE_DATA_KEY:?Set INTAKE_DATA_KEY in .env, see .env.example}
+      GATEWAY_SECRET: ${GATEWAY_SECRET:?Set GATEWAY_SECRET in .env, see .env.example}
       # Staff allow-lists come from .env (not in git); see .env.example.
       GP_EMAILS: ${GP_EMAILS:-}
       ASSISTANT_EMAILS: ${ASSISTANT_EMAILS:-}
@@ -106,6 +109,7 @@ services:
       API_URL: http://intake-service:8080
       ACCOUNT_API_URL: http://account-service:8080
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:?Set GOOGLE_CLIENT_ID in .env, see .env.example}
+      GATEWAY_SECRET: ${GATEWAY_SECRET:?Set GATEWAY_SECRET in .env, see .env.example}
     ports:
       - "4200:8080"
     depends_on:
