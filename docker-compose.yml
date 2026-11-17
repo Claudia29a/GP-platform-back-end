@@ -61,8 +61,8 @@ services:
       MAIL_FROM: CareBridge <no-reply@carebridge.test>
       # Test addresses use example.com, which takes no mail: only here may they sign up anyway.
       SIGNUP_UNCHECKED_EMAIL_DOMAINS: example.com
-      # Locally the clean-up of unconfirmed accounts runs every 10 seconds, so the tests can watch it work.
-      ACCOUNT_CLEANUP_INTERVAL: PT10S
+      # Locally the clean-up of unconfirmed accounts runs every 2 seconds, so the tests can watch it work.
+      ACCOUNT_CLEANUP_INTERVAL: PT2S
     ports:
       - "8081:8080"
     depends_on:
