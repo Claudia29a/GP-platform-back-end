@@ -33,6 +33,7 @@ public class SecurityConfig {
 						.requestMatchers("/actuator/health/**").permitAll()
 						// Only the GP answers questions; assistants prepare the queue.
 						.requestMatchers(HttpMethod.POST, "/questions/*/replies").hasRole(Role.GP.name())
+						.requestMatchers("/me/replies").hasRole(Role.PATIENT.name())
 						.anyRequest().authenticated())
 				.oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(authenticationConverter)))
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

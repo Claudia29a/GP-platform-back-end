@@ -37,12 +37,13 @@ class IntakeClientTest {
 				.andExpect(header("Authorization", "Bearer user.token"))
 				.andExpect(header("X-CareBridge-Gateway", "the-gateway-secret"))
 				.andRespond(withSuccess("""
-						{"id": "%s", "patientName": "Anna de Vries", "patientEmail": "anna@example.com", "description": "Rash"}
+						{"id": "%s", "patientName": "Anna de Vries", "patientEmail": "anna@example.com", "submittedAt": "2026-11-01T09:00:00Z"}
 						""".formatted(QUESTION), MediaType.APPLICATION_JSON));
 
 		assertThat(client.find(QUESTION, "Bearer user.token")).hasValueSatisfying(question -> {
 			assertThat(question.patientName()).isEqualTo("Anna de Vries");
 			assertThat(question.patientEmail()).isEqualTo("anna@example.com");
+			assertThat(question.submittedAt()).isEqualTo(java.time.Instant.parse("2026-11-01T09:00:00Z"));
 		});
 		intake.verify();
 	}
@@ -52,5 +53,15 @@ class IntakeClientTest {
 		intake.expect(requestTo("http://intake.test/intakes/" + QUESTION + "/recipient")).andRespond(withStatus(HttpStatus.NOT_FOUND));
 
 		assertThat(client.find(QUESTION, "Bearer user.token")).isEmpty();
+	}
+
+	@Test
+	void asksTheIntakeServiceForThePatientsOwnQuestionIds() {
+		intake.expect(requestTo("http://intake.test/me/question-ids"))
+				.andExpect(header("Authorization", "Bearer patient.token"))
+				.andExpect(header("X-CareBridge-Gateway", "the-gateway-secret"))
+				.andRespond(withSuccess("[\"%s\"]".formatted(QUESTION), MediaType.APPLICATION_JSON));
+
+		assertThat(client.myQuestionIds("Bearer patient.token")).containsExactly(QUESTION);
 	}
 }

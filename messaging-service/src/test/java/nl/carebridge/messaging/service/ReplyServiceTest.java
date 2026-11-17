@@ -37,7 +37,7 @@ class ReplyServiceTest {
 	private static final UUID QUESTION = UUID.fromString("3f1c2a4e-0000-4000-8000-000000000001");
 	private static final CurrentUser GP = new CurrentUser("google-gp", "Dr. Jansen", "gp@example.com", Role.GP);
 	private static final CurrentUser PATIENT = new CurrentUser("google-anna", "Anna", "anna@example.com", Role.PATIENT);
-	private static final Question ANNAS_QUESTION = new Question(QUESTION, "Anna de Vries", "anna@example.com");
+	private static final Question ANNAS_QUESTION = new Question(QUESTION, "Anna de Vries", "anna@example.com", Instant.parse("2026-11-01T09:00:00Z"));
 
 	@Mock
 	private ReplyRepository repository;
@@ -69,6 +69,7 @@ class ReplyServiceTest {
 		assertThat(reply.getAuthorName()).isEqualTo("Dr. Jansen");
 		assertThat(reply.getAuthorHash()).isEqualTo(protection.hash("google-gp"));
 		assertThat(reply.getCreatedAt()).isAfterOrEqualTo(before);
+		assertThat(reply.getQuestionSubmittedAt()).isEqualTo(Instant.parse("2026-11-01T09:00:00Z"));
 		verify(notifier).replyArrived(ANNAS_QUESTION);
 	}
 
@@ -84,7 +85,7 @@ class ReplyServiceTest {
 
 	@Test
 	void thePatientReadsTheRepliesToTheirOwnQuestionOldestFirst() {
-		Reply first = new Reply(QUESTION, "hash", "Dr. Jansen", "First", Instant.parse("2026-11-17T10:00:00Z"));
+		Reply first = new Reply(QUESTION, "hash", "Dr. Jansen", "First", Instant.parse("2026-11-17T10:00:00Z"), Instant.parse("2026-11-01T09:00:00Z"));
 		when(intakeClient.find(QUESTION, "Bearer patient.token")).thenReturn(Optional.of(ANNAS_QUESTION));
 		when(repository.findAllByIntakeIdOrderByCreatedAtAsc(QUESTION)).thenReturn(List.of(first));
 
@@ -97,5 +98,32 @@ class ReplyServiceTest {
 
 		assertThatThrownBy(() -> service.replies(QUESTION, PATIENT, "Bearer patient.token")).isInstanceOf(ResponseStatusException.class);
 		verify(repository, never()).findAllByIntakeIdOrderByCreatedAtAsc(any());
+	}
+
+	@Test
+	void aPatientsRepliesAreFoundThroughTheirOwnQuestionIds() {
+		Reply first = new Reply(QUESTION, "hash", "Dr. Jansen", "First", Instant.parse("2026-11-17T10:00:00Z"), Instant.parse("2026-11-01T09:00:00Z"));
+		when(intakeClient.myQuestionIds("Bearer patient.token")).thenReturn(List.of(QUESTION));
+		when(repository.findAllByIntakeIdInOrderByCreatedAtAsc(List.of(QUESTION))).thenReturn(List.of(first));
+
+		assertThat(service.myReplies("Bearer patient.token")).containsExactly(first);
+	}
+
+	@Test
+	void deletingAPatientsRepliesDeletesTheRepliesToTheirOwnQuestionsOnly() {
+		when(intakeClient.myQuestionIds("Bearer patient.token")).thenReturn(List.of(QUESTION));
+
+		service.deleteMyReplies("Bearer patient.token");
+
+		verify(repository).deleteAllByIntakeIdIn(List.of(QUESTION));
+	}
+
+	@Test
+	void aPatientWithoutQuestionsHasNothingToDelete() {
+		when(intakeClient.myQuestionIds("Bearer patient.token")).thenReturn(List.of());
+
+		service.deleteMyReplies("Bearer patient.token");
+
+		verify(repository, never()).deleteAllByIntakeIdIn(any());
 	}
 }

@@ -6,7 +6,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
-/** Scheduling runs the clean-up of old questions. */
+/** Scheduling runs the clean-up of replies whose question passed the retention period. */
 @Configuration
 @EnableScheduling
 public class AppConfig {

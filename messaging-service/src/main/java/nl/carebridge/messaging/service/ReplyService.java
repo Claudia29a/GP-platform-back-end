@@ -35,7 +35,8 @@ public class ReplyService {
 	@Transactional
 	public Reply reply(UUID questionId, String text, CurrentUser gp, String authorization) {
 		Question question = visibleQuestion(questionId, authorization);
-		Reply reply = repository.save(new Reply(questionId, protection.hash(gp.id()), gp.name(), text.strip(), Instant.now()));
+		Reply reply = repository.save(new Reply(questionId, protection.hash(gp.id()), gp.name(), text.strip(), Instant.now(),
+				question.submittedAt()));
 		notifier.replyArrived(question);
 		return reply;
 	}
@@ -44,6 +45,22 @@ public class ReplyService {
 	public List<Reply> replies(UUID questionId, CurrentUser user, String authorization) {
 		visibleQuestion(questionId, authorization);
 		return repository.findAllByIntakeIdOrderByCreatedAtAsc(questionId);
+	}
+
+	/** For My data: the replies to the signed-in patient's own questions. */
+	@Transactional(readOnly = true)
+	public List<Reply> myReplies(String authorization) {
+		List<UUID> ids = intakeClient.myQuestionIds(authorization);
+		return ids.isEmpty() ? List.of() : repository.findAllByIntakeIdInOrderByCreatedAtAsc(ids);
+	}
+
+	/** "Delete my account": the replies go first, while the questions still say whose they are. */
+	@Transactional
+	public void deleteMyReplies(String authorization) {
+		List<UUID> ids = intakeClient.myQuestionIds(authorization);
+		if (!ids.isEmpty()) {
+			repository.deleteAllByIntakeIdIn(ids);
+		}
 	}
 
 	private Question visibleQuestion(UUID questionId, String authorization) {

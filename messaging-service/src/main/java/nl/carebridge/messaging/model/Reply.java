@@ -40,15 +40,20 @@ public class Reply {
 	@Column(nullable = false)
 	private Instant createdAt;
 
+	/** When the question was sent: the reply is deleted together with it after 6 months. */
+	@Column(nullable = false)
+	private Instant questionSubmittedAt;
+
 	protected Reply() {
 	}
 
-	public Reply(UUID intakeId, String authorHash, String authorName, String text, Instant createdAt) {
+	public Reply(UUID intakeId, String authorHash, String authorName, String text, Instant createdAt, Instant questionSubmittedAt) {
 		this.intakeId = intakeId;
 		this.authorHash = authorHash;
 		this.authorName = authorName;
 		this.text = text;
 		this.createdAt = createdAt;
+		this.questionSubmittedAt = questionSubmittedAt;
 	}
 
 	public UUID getId() {
@@ -73,5 +78,9 @@ public class Reply {
 
 	public Instant getCreatedAt() {
 		return createdAt;
+	}
+
+	public Instant getQuestionSubmittedAt() {
+		return questionSubmittedAt;
 	}
 }
