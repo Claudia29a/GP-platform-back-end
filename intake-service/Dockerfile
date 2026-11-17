@@ -1,5 +1,5 @@
 # Stage 1: build the executable jar.
-FROM eclipse-temurin:21-jdk-alpine AS build
+FROM eclipse-temurin:25-jdk-alpine AS build
 WORKDIR /workspace
 
 # Download dependencies first, so this layer is cached until build.gradle changes.
@@ -15,7 +15,7 @@ RUN java -Djarmode=tools -jar build/libs/*.jar extract --destination /workspace/
     && mv /workspace/extracted/*.jar /workspace/extracted/app.jar
 
 # Stage 2: only the Java runtime and the application.
-FROM eclipse-temurin:21-jre-alpine AS runtime
+FROM eclipse-temurin:25-jre-alpine AS runtime
 # The base image can lag behind Alpine's security fixes.
 RUN apk upgrade --no-cache && addgroup -S app && adduser -S app -G app && mkdir /app && chown app:app /app
 USER app
