@@ -30,6 +30,7 @@ import org.springframework.web.server.ResponseStatusException;
 import nl.carebridge.account.dto.LoginRequest;
 import nl.carebridge.account.service.AccountService;
 import nl.carebridge.account.service.SigningKey;
+import nl.carebridge.account.service.MailDomainChecker;
 import nl.carebridge.account.service.OwnTokens;
 import nl.carebridge.account.service.SignUpLimiter;
 import nl.carebridge.account.service.TokenService;
@@ -60,6 +61,9 @@ class AccountControllerTest {
 
 	@MockitoBean
 	private OwnTokens ownTokens;
+
+	@MockitoBean
+	private MailDomainChecker mailDomainChecker;
 
 	@Test
 	void signUpReturnsTheAccountWithoutPasswordData() throws Exception {
@@ -234,5 +238,17 @@ class AccountControllerTest {
 		mockMvc.perform(get("/accounts/me")).andExpect(status().isUnauthorized());
 		mockMvc.perform(delete("/accounts/me").header("Authorization", "Bearer forged")).andExpect(status().isUnauthorized());
 		verify(accountService, never()).delete(any());
+	}
+
+	@Test
+	void anAddressThatCannotReceiveEmailIsRefusedBeforeAnythingIsStored() throws Exception {
+		org.mockito.Mockito.doThrow(new ResponseStatusException(HttpStatus.valueOf(422), "No email can be delivered to this address"))
+				.when(mailDomainChecker).requireMailDomain("anna@gmial.con");
+
+		mockMvc.perform(post("/accounts").contentType(MediaType.APPLICATION_JSON)
+						.content("{\"name\": \"Anna\", \"email\": \"anna@gmial.con\", \"password\": \"Secret12\"}"))
+				.andExpect(status().is(422));
+		verify(accountService, never()).register(any());
+		verify(verificationService, never()).sendNewCode(any());
 	}
 }
