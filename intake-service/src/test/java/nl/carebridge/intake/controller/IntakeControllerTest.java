@@ -216,6 +216,7 @@ class IntakeControllerTest {
 		mockMvc.perform(get("/intakes/" + intake.getId() + "/recipient").with(signedIn("google-gp", "Dr. Jansen", "gp@example.com")))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.patientEmail").exists())
+				.andExpect(jsonPath("$.submittedAt").exists())
 				.andExpect(jsonPath("$.description").doesNotExist())
 				.andExpect(jsonPath("$.severity").doesNotExist());
 	}

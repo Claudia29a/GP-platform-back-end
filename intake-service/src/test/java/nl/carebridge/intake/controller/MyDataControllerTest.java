@@ -127,6 +127,18 @@ class MyDataControllerTest {
 		verify(myDataService, never()).rename(any(), any());
 	}
 
+	@Test
+	void aPatientsQuestionIdsAreListedWithoutAnyHealthDetails() throws Exception {
+		UUID first = UUID.randomUUID();
+		when(myDataService.questionIds(PATIENT)).thenReturn(List.of(first));
+
+		mockMvc.perform(get("/me/question-ids").with(user("google-anna", "Anna de Vries", "anna@example.com")))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$[0]").value(first.toString()));
+		mockMvc.perform(get("/me/question-ids").with(user("google-gp", "Dr. Jansen", "gp@example.com")))
+				.andExpect(status().isForbidden());
+	}
+
 	private JwtRequestPostProcessor user(String id, String name, String email) {
 		return jwt().jwt(token -> token.subject(id).claim("name", name).claim("email", email).claim("email_verified", true))
 				.authorities(currentUserResolver::authorities);

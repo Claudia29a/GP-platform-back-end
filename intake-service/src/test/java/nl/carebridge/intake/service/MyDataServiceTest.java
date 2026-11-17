@@ -107,4 +107,13 @@ class MyDataServiceTest {
 		assertThat(first.getPatientName()).isEqualTo("Anna Jansen");
 		assertThat(second.getPatientName()).isEqualTo("Anna Jansen");
 	}
+
+	@Test
+	void listsOnlyTheIdsOfThePatientsOwnQuestions() {
+		Intake first = new Intake();
+		first.setId(UUID.randomUUID());
+		when(intakeRepository.findAllByPatientIdOrderBySubmittedAtAsc(owner)).thenReturn(List.of(first));
+
+		assertThat(service.questionIds(PATIENT)).containsExactly(first.getId());
+	}
 }

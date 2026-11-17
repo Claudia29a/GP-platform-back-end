@@ -38,7 +38,7 @@ public class SecurityConfig {
 								AuthorityAuthorizationManager.hasRole(Role.PATIENT.name()),
 								AuthorityAuthorizationManager.hasAuthority(CurrentUserResolver.EMAIL_VERIFIED)))
 						.requestMatchers("/privacy-consent").hasRole(Role.PATIENT.name())
-						.requestMatchers("/me/data").hasRole(Role.PATIENT.name())
+						.requestMatchers("/me/data/**", "/me/question-ids").hasRole(Role.PATIENT.name())
 						.requestMatchers(HttpMethod.GET, "/intakes/*/access-log").hasRole(Role.GP.name())
 						.requestMatchers("/queue/**").hasAnyRole(Role.GP_ASSISTANT.name(), Role.GP.name())
 						.anyRequest().authenticated())

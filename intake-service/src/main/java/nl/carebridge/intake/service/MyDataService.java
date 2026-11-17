@@ -51,6 +51,12 @@ public class MyDataService {
 						.toList());
 	}
 
+	/** Only the IDs, so the Messaging Service can find and delete the replies without receiving health data. */
+	@Transactional(readOnly = true)
+	public List<UUID> questionIds(CurrentUser patient) {
+		return intakeRepository.findAllByPatientIdOrderBySubmittedAtAsc(protection.hash(patient.id())).stream().map(Intake::getId).toList();
+	}
+
 	/** Corrects the patient's name on all their questions (GDPR Art. 16). */
 	@Transactional
 	public void rename(CurrentUser patient, String name) {
