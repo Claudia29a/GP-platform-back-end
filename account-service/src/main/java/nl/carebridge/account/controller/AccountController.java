@@ -24,6 +24,7 @@ import nl.carebridge.account.dto.VerifyRequest;
 import nl.carebridge.account.model.Account;
 import nl.carebridge.account.service.AccountService;
 import nl.carebridge.account.service.ClientAddress;
+import nl.carebridge.account.service.MailDomainChecker;
 import nl.carebridge.account.service.OwnTokens;
 import nl.carebridge.account.service.SignUpLimiter;
 import nl.carebridge.account.service.TokenService;
@@ -37,14 +38,16 @@ public class AccountController {
 	private final VerificationService verificationService;
 	private final SignUpLimiter signUpLimiter;
 	private final OwnTokens ownTokens;
+	private final MailDomainChecker mailDomainChecker;
 
 	public AccountController(AccountService accountService, TokenService tokenService,
-			VerificationService verificationService, SignUpLimiter signUpLimiter, OwnTokens ownTokens) {
+			VerificationService verificationService, SignUpLimiter signUpLimiter, OwnTokens ownTokens, MailDomainChecker mailDomainChecker) {
 		this.accountService = accountService;
 		this.tokenService = tokenService;
 		this.verificationService = verificationService;
 		this.signUpLimiter = signUpLimiter;
 		this.ownTokens = ownTokens;
+		this.mailDomainChecker = mailDomainChecker;
 	}
 
 	/** Sign up with name, email and password; a code to confirm the address is emailed straight away. */
@@ -53,6 +56,7 @@ public class AccountController {
 	public AccountResponse register(@Valid @RequestBody RegisterRequest request, HttpServletRequest http) {
 		Optional<String> visitor = ClientAddress.of(http.getHeader("X-Forwarded-For"), http.getRemoteAddr());
 		signUpLimiter.check(visitor);
+		mailDomainChecker.requireMailDomain(request.email());
 		Account account = accountService.register(request);
 		signUpLimiter.record(visitor);
 		verificationService.sendNewCode(account);

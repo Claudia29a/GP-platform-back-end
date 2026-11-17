@@ -60,6 +60,9 @@ class AccountServiceIntegrationTest {
 	@Autowired
 	private JdbcTemplate jdbc;
 
+	@Autowired
+	private nl.carebridge.account.service.UnconfirmedAccountCleaner cleaner;
+
 	/** Catches the emails, so the test can read the code like a user would. */
 	@MockitoBean
 	private JavaMailSender mailSender;
@@ -133,6 +136,27 @@ class AccountServiceIntegrationTest {
 						.content("{\"email\": \"dana@example.com\", \"password\": \"Secret12\"}"))
 				.andExpect(status().isUnauthorized());
 		assertThat(repository.findByEmailHash(protection.hash("dana@example.com"))).isEmpty();
+	}
+
+	@Test
+	void unconfirmedAccountsOlderThanADayAreDeletedButConfirmedAndNewOnesStay() throws Exception {
+		for (String who : new String[] {"old-unconfirmed", "new-unconfirmed", "old-confirmed"}) {
+			mockMvc.perform(post("/accounts").contentType(MediaType.APPLICATION_JSON)
+							.content("{\"name\": \"Eve\", \"email\": \"" + who + "@example.com\", \"password\": \"Secret12\"}"))
+					.andExpect(status().isCreated());
+		}
+		jdbc.update("UPDATE account SET created_at = now() - interval '25 hours' WHERE email_hash IN (?, ?)",
+				protection.hash("old-unconfirmed@example.com"), protection.hash("old-confirmed@example.com"));
+		jdbc.update("UPDATE account SET email_verified = true WHERE email_hash = ?", protection.hash("old-confirmed@example.com"));
+
+		assertThat(cleaner.cleanUp()).isEqualTo(1);
+
+		assertThat(repository.findByEmailHash(protection.hash("old-unconfirmed@example.com"))).isEmpty();
+		assertThat(repository.findByEmailHash(protection.hash("new-unconfirmed@example.com"))).isPresent();
+		assertThat(repository.findByEmailHash(protection.hash("old-confirmed@example.com"))).isPresent();
+		mockMvc.perform(post("/accounts").contentType(MediaType.APPLICATION_JSON)
+						.content("{\"name\": \"Eve again\", \"email\": \"old-unconfirmed@example.com\", \"password\": \"Secret12\"}"))
+				.andExpect(status().isCreated());
 	}
 
 	@Test
