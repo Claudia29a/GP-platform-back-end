@@ -34,6 +34,8 @@ ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75 -XX:+UseSerialGC -XX:TieredStopAt
 RUN GATEWAY_SECRET=training MESSAGING_DB_URL=jdbc:postgresql://localhost:5432/training MESSAGING_DB_USER=training MESSAGING_DB_PASSWORD=training \
     GOOGLE_CLIENT_ID=training ACCOUNT_JWKS_URI=http://localhost:1/training \
     MESSAGING_DATA_KEY=MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY= \
+    INTAKE_API_URL=http://localhost:1/training SITE_URL=http://localhost MAIL_HOST=localhost MAIL_PORT=1 MAIL_USERNAME= MAIL_PASSWORD= \
+    MAIL_AUTH=false MAIL_STARTTLS_REQUIRED=false MAIL_FROM=training@carebridge.test \
     java -XX:ArchiveClassesAtExit=app.jsa -Dspring.context.exit=onRefresh \
     -Dspring.flyway.enabled=false -Dspring.jpa.hibernate.ddl-auto=none \
     -Dspring.jpa.properties.hibernate.boot.allow_jdbc_metadata_access=false \
