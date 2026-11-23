@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import nl.carebridge.messaging.dto.ReplyResponse;
+import nl.carebridge.messaging.service.AppointmentLink;
 import nl.carebridge.messaging.service.ReplyService;
 
 /** The patient's own replies, for My data: to take them along (GDPR Art. 15, 20) or delete them (Art. 17). */
@@ -20,14 +21,16 @@ import nl.carebridge.messaging.service.ReplyService;
 public class MyRepliesController {
 
 	private final ReplyService replyService;
+	private final AppointmentLink appointmentLink;
 
-	public MyRepliesController(ReplyService replyService) {
+	public MyRepliesController(ReplyService replyService, AppointmentLink appointmentLink) {
 		this.replyService = replyService;
+		this.appointmentLink = appointmentLink;
 	}
 
 	@GetMapping
 	public List<ReplyResponse> export(@AuthenticationPrincipal Jwt token) {
-		return replyService.myReplies("Bearer " + token.getTokenValue()).stream().map(ReplyResponse::from).toList();
+		return replyService.myReplies("Bearer " + token.getTokenValue()).stream().map(reply -> ReplyResponse.from(reply, appointmentLink)).toList();
 	}
 
 	@DeleteMapping

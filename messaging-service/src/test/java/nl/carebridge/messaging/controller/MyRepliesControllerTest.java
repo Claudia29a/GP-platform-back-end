@@ -27,10 +27,11 @@ import org.springframework.test.web.servlet.MockMvc;
 import nl.carebridge.messaging.model.Reply;
 import nl.carebridge.messaging.security.CurrentUserResolver;
 import nl.carebridge.messaging.security.SecurityConfig;
+import nl.carebridge.messaging.service.AppointmentLink;
 import nl.carebridge.messaging.service.ReplyService;
 
 @WebMvcTest(MyRepliesController.class)
-@Import({SecurityConfig.class, CurrentUserResolver.class})
+@Import({SecurityConfig.class, CurrentUserResolver.class, AppointmentLink.class})
 @TestPropertySource(properties = "carebridge.security.gp-emails=gp@example.com")
 @Tag("api")
 class MyRepliesControllerTest {
@@ -48,12 +49,14 @@ class MyRepliesControllerTest {
 	void aPatientExportsTheRepliesToTheirQuestions() throws Exception {
 		UUID question = UUID.randomUUID();
 		when(replyService.myReplies("Bearer token")).thenReturn(List.of(
-				new Reply(question, "hash", "Dr. Jansen", "Use the cream.", Instant.parse("2026-11-17T10:00:00Z"), Instant.parse("2026-11-01T09:00:00Z"))));
+				new Reply(question, "hash", "Dr. Jansen", "Use the cream.", true, Instant.parse("2026-11-17T10:00:00Z"), Instant.parse("2026-11-01T09:00:00Z"))));
 
 		mockMvc.perform(get("/me/replies").with(user("google-anna", "anna@example.com")))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$[0].text").value("Use the cream."))
-				.andExpect(jsonPath("$[0].questionId").value(question.toString()));
+				.andExpect(jsonPath("$[0].questionId").value(question.toString()))
+				// User story nr 9 TAC1: My data shows that an appointment was asked.
+				.andExpect(jsonPath("$[0].appointment").value(true));
 	}
 
 	@Test

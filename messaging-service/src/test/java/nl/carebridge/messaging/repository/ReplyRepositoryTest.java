@@ -57,6 +57,26 @@ class ReplyRepositoryTest {
 		assertThat(row[1].toString()).doesNotContain("Jansen");
 	}
 
+	/** User story nr 9 TAC1: the invitation is stored encrypted; replies from before it count as no invitation. */
+	@Test
+	void storesTheInvitationEncryptedAndOldRepliesHaveNone() {
+		UUID question = UUID.randomUUID();
+		Instant now = Instant.now().truncatedTo(ChronoUnit.MICROS);
+		repository.save(new Reply(question, "gp-hash", "Dr. Jansen", "Please come in.", true, now, now));
+		entityManager.flush();
+		entityManager.getEntityManager().createNativeQuery(
+				"INSERT INTO reply (id, intake_id, author_hash, author_name, text, created_at, question_submitted_at) "
+						+ "SELECT gen_random_uuid(), intake_id, author_hash, author_name, text, created_at - interval '1 minute', question_submitted_at FROM reply WHERE intake_id = :id")
+				.setParameter("id", question).executeUpdate();
+		entityManager.clear();
+
+		assertThat(repository.findAllByIntakeIdOrderByCreatedAtAsc(question)).extracting(Reply::isAppointment).containsExactly(false, true);
+		Object stored = entityManager.getEntityManager()
+				.createNativeQuery("SELECT appointment FROM reply WHERE intake_id = :id AND appointment IS NOT NULL")
+				.setParameter("id", question).getSingleResult();
+		assertThat(stored.toString()).isNotIn("true", "yes", "t");
+	}
+
 	@Test
 	void deletesRepliesWhoseQuestionIsOlderThanTheLimitAndAPatientsReplies() {
 		Instant now = Instant.now().truncatedTo(ChronoUnit.MICROS);

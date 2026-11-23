@@ -29,12 +29,13 @@ class ReplyNotifierTest {
 	private JavaMailSender sender;
 
 	private ReplyNotifier notifier() {
-		return new ReplyNotifier(sender, "CareBridge <no-reply@carebridge.test>", "https://carebridge.test");
+		return new ReplyNotifier(sender, "CareBridge <no-reply@carebridge.test>", "https://carebridge.test",
+				new AppointmentLink("https://carebridge.test/appointment"));
 	}
 
 	@Test
 	void tellsThePatientThereIsAReplyWithALinkAndNoHealthDetails() {
-		assertThat(notifier().replyArrived(QUESTION)).isTrue();
+		assertThat(notifier().replyArrived(QUESTION, false)).isTrue();
 
 		ArgumentCaptor<SimpleMailMessage> mail = ArgumentCaptor.forClass(SimpleMailMessage.class);
 		verify(sender).send(mail.capture());
@@ -43,6 +44,19 @@ class ReplyNotifierTest {
 		assertThat(mail.getValue().getText())
 				.contains("Sign in to read it", "https://carebridge.test/questions/3f1c2a4e-0000-4000-8000-000000000001",
 						"does not contain the reply")
+				.doesNotContain("Rash", "cream", "appointment");
+	}
+
+	/** User story nr 9 AC2: with an invitation, the email also links to the booking page, still without health details. */
+	@Test
+	void anInvitationAddsTheBookingLinkAndStillNoHealthDetails() {
+		assertThat(notifier().replyArrived(QUESTION, true)).isTrue();
+
+		ArgumentCaptor<SimpleMailMessage> mail = ArgumentCaptor.forClass(SimpleMailMessage.class);
+		verify(sender).send(mail.capture());
+		assertThat(mail.getValue().getText())
+				.contains("would like you to make an appointment", "Make an appointment: https://carebridge.test/appointment",
+						"Sign in to read it", "does not contain the reply")
 				.doesNotContain("Rash", "cream");
 	}
 
@@ -50,6 +64,6 @@ class ReplyNotifierTest {
 	void aFailedEmailIsReportedAndDoesNotLoseTheReply() {
 		doThrow(new MailSendException("server down")).when(sender).send(any(SimpleMailMessage.class));
 
-		assertThat(notifier().replyArrived(QUESTION)).isFalse();
+		assertThat(notifier().replyArrived(QUESTION, true)).isFalse();
 	}
 }

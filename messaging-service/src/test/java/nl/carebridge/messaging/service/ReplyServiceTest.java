@@ -62,7 +62,7 @@ class ReplyServiceTest {
 		when(intakeClient.find(QUESTION, "Bearer gp.token")).thenReturn(Optional.of(ANNAS_QUESTION));
 		Instant before = Instant.now();
 
-		Reply reply = service.reply(QUESTION, "  Please use the cream twice a day. ", GP, "Bearer gp.token");
+		Reply reply = service.reply(QUESTION, "  Please use the cream twice a day. ", false, GP, "Bearer gp.token");
 
 		assertThat(reply.getIntakeId()).isEqualTo(QUESTION);
 		assertThat(reply.getText()).isEqualTo("Please use the cream twice a day.");
@@ -70,17 +70,31 @@ class ReplyServiceTest {
 		assertThat(reply.getAuthorHash()).isEqualTo(protection.hash("google-gp"));
 		assertThat(reply.getCreatedAt()).isAfterOrEqualTo(before);
 		assertThat(reply.getQuestionSubmittedAt()).isEqualTo(Instant.parse("2026-11-01T09:00:00Z"));
-		verify(notifier).replyArrived(ANNAS_QUESTION);
+		assertThat(reply.isAppointment()).isFalse();
+		verify(notifier).replyArrived(ANNAS_QUESTION, false);
+	}
+
+	/** User story nr 9 TAC1 TAC4: the invitation is stored with the reply and passed to the email; a failed email loses nothing. */
+	@Test
+	void anInvitationIsStoredWithTheReplyEvenWhenTheEmailFails() {
+		when(intakeClient.find(QUESTION, "Bearer gp.token")).thenReturn(Optional.of(ANNAS_QUESTION));
+		when(notifier.replyArrived(ANNAS_QUESTION, true)).thenReturn(false);
+
+		Reply reply = service.reply(QUESTION, "Please come and see me.", true, GP, "Bearer gp.token");
+
+		assertThat(reply.isAppointment()).isTrue();
+		verify(repository).save(reply);
+		verify(notifier).replyArrived(ANNAS_QUESTION, true);
 	}
 
 	@Test
 	void aQuestionTheIntakeServiceDoesNotShowIsNotFoundAndNothingIsStored() {
 		when(intakeClient.find(QUESTION, "Bearer gp.token")).thenReturn(Optional.empty());
 
-		assertThatThrownBy(() -> service.reply(QUESTION, "Hello", GP, "Bearer gp.token"))
+		assertThatThrownBy(() -> service.reply(QUESTION, "Hello", true, GP, "Bearer gp.token"))
 				.isInstanceOfSatisfying(ResponseStatusException.class, ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND));
 		verify(repository, never()).save(any());
-		verify(notifier, never()).replyArrived(any());
+		verify(notifier, never()).replyArrived(any(), org.mockito.ArgumentMatchers.anyBoolean());
 	}
 
 	@Test
