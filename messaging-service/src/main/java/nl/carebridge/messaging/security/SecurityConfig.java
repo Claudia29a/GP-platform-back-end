@@ -34,6 +34,11 @@ public class SecurityConfig {
 						// Only the GP answers questions; assistants prepare the queue.
 						.requestMatchers(HttpMethod.POST, "/questions/*/replies").hasRole(Role.GP.name())
 						.requestMatchers("/me/replies").hasRole(Role.PATIENT.name())
+						// User story nr 10: patients book and cancel their own appointments; staff see the list of a day.
+						.requestMatchers(HttpMethod.GET, "/appointments/free").hasRole(Role.PATIENT.name())
+						.requestMatchers(HttpMethod.POST, "/replies/*/appointment").hasRole(Role.PATIENT.name())
+						.requestMatchers(HttpMethod.DELETE, "/appointments/*").hasRole(Role.PATIENT.name())
+						.requestMatchers(HttpMethod.GET, "/appointments").hasAnyRole(Role.GP_ASSISTANT.name(), Role.GP.name())
 						.anyRequest().authenticated())
 				.oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(authenticationConverter)))
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

@@ -37,7 +37,7 @@ public class ReplyService {
 		Question question = visibleQuestion(questionId, authorization);
 		Reply reply = repository.save(new Reply(questionId, protection.hash(gp.id()), gp.name(), text.strip(), appointment,
 				Instant.now(), question.submittedAt()));
-		notifier.replyArrived(question, appointment);
+		notifier.replyArrived(question, reply);
 		return reply;
 	}
 

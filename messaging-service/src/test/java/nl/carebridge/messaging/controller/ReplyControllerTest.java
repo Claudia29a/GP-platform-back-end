@@ -31,11 +31,15 @@ import nl.carebridge.messaging.security.CurrentUser;
 import nl.carebridge.messaging.security.CurrentUserResolver;
 import nl.carebridge.messaging.security.Role;
 import nl.carebridge.messaging.security.SecurityConfig;
+import nl.carebridge.messaging.appointment.AppointmentConfig;
+import nl.carebridge.messaging.appointment.AppointmentRepository;
+import nl.carebridge.messaging.config.AppConfig;
 import nl.carebridge.messaging.service.AppointmentLink;
+import nl.carebridge.messaging.service.ReplyViews;
 import nl.carebridge.messaging.service.ReplyService;
 
 @WebMvcTest(ReplyController.class)
-@Import({SecurityConfig.class, CurrentUserResolver.class, AppointmentLink.class})
+@Import({SecurityConfig.class, CurrentUserResolver.class, AppointmentLink.class, ReplyViews.class, AppConfig.class, AppointmentConfig.class})
 @TestPropertySource(properties = {
 		"carebridge.security.gp-emails=gp@example.com",
 		"carebridge.security.assistant-emails=assistant@example.com"})
@@ -53,6 +57,9 @@ class ReplyControllerTest {
 
 	@MockitoBean
 	private ReplyService replyService;
+
+	@MockitoBean
+	private AppointmentRepository appointmentRepository;
 
 	@Test
 	void theGpRepliesAndGetsTheReplyBack() throws Exception {
@@ -80,7 +87,7 @@ class ReplyControllerTest {
 						.content("{\"text\": \"Please come in.\", \"appointment\": true, \"appointmentUrl\": \"https://evil.example\"}"))
 				.andExpect(status().isCreated())
 				.andExpect(jsonPath("$.appointment").value(true))
-				.andExpect(jsonPath("$.appointmentUrl").value("https://carebridge.test/appointment"));
+				.andExpect(jsonPath("$.appointmentUrl", org.hamcrest.Matchers.startsWith("https://carebridge.test/appointment?reply=")));
 	}
 
 	/** User story nr 9 AC5: only the GP can send an invitation, just like a reply. */
@@ -122,6 +129,22 @@ class ReplyControllerTest {
 		mockMvc.perform(get("/questions/" + QUESTION + "/replies").with(user("google-anna", "Anna", "anna@example.com")))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$[0].text").value("Use the cream."));
+	}
+
+	/** User story nr 10 AC2 AC6: the patient and staff see the booked time under the invitation. */
+	@Test
+	void aBookedAppointmentIsShownUnderItsInvitation() throws Exception {
+		UUID replyId = UUID.randomUUID();
+		Reply invitation = new Reply(QUESTION, "hash", "Dr. Jansen", "Please come in.", true, Instant.parse("2026-11-17T10:00:00Z"), Instant.parse("2026-11-01T09:00:00Z"));
+		org.springframework.test.util.ReflectionTestUtils.setField(invitation, "id", replyId);
+		when(replyService.replies(eq(QUESTION), any(), any())).thenReturn(List.of(invitation));
+		when(appointmentRepository.findAllByReplyIdIn(List.of(replyId))).thenReturn(List.of(
+				new nl.carebridge.messaging.appointment.Appointment(replyId, QUESTION, "hash", "Anna", Instant.parse("2026-12-01T09:00:00Z"), Instant.now())));
+
+		mockMvc.perform(get("/questions/" + QUESTION + "/replies").with(user("google-sam", "Sam", "assistant@example.com")))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$[0].booked.day").value("Tuesday 1 December 2026"))
+				.andExpect(jsonPath("$[0].booked.time").value("10:00"));
 	}
 
 	@Test
