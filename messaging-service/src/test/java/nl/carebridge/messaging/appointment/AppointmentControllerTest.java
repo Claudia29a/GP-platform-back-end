@@ -101,7 +101,8 @@ class AppointmentControllerTest {
 
 		mockMvc.perform(post("/replies/" + REPLY + "/appointment").with(anna)
 						.contentType(MediaType.APPLICATION_JSON).content("{\"start\": \"2026-12-01T09:00:00Z\"}"))
-				.andExpect(status().isConflict());
+				.andExpect(status().isConflict())
+				.andExpect(jsonPath("$.message").value("This time was just taken. Please choose another."));
 	}
 
 	@Test
