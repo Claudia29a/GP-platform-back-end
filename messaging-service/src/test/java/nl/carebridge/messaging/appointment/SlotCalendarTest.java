@@ -49,10 +49,8 @@ class SlotCalendarTest {
 	void neverOffersAWeekend() {
 		List<Instant> offered = calendarAt(MONDAY_AFTERNOON).offered();
 
-		assertThat(offered).noneMatch(start -> {
-			DayOfWeek day = start.atZone(AMSTERDAM).getDayOfWeek();
-			return day == DayOfWeek.SATURDAY || day == DayOfWeek.SUNDAY;
-		});
+		assertThat(offered).noneMatch(start -> java.util.EnumSet.of(DayOfWeek.SATURDAY, DayOfWeek.SUNDAY)
+				.contains(start.atZone(AMSTERDAM).getDayOfWeek()));
 	}
 
 	@Test
