@@ -18,6 +18,7 @@ import jakarta.validation.Valid;
 import nl.carebridge.messaging.dto.ReplyRequest;
 import nl.carebridge.messaging.dto.ReplyResponse;
 import nl.carebridge.messaging.security.CurrentUserResolver;
+import nl.carebridge.messaging.service.AppointmentLink;
 import nl.carebridge.messaging.service.ReplyService;
 
 @RestController
@@ -26,24 +27,28 @@ public class ReplyController {
 
 	private final ReplyService replyService;
 	private final CurrentUserResolver currentUserResolver;
+	private final AppointmentLink appointmentLink;
 
-	public ReplyController(ReplyService replyService, CurrentUserResolver currentUserResolver) {
+	public ReplyController(ReplyService replyService, CurrentUserResolver currentUserResolver, AppointmentLink appointmentLink) {
 		this.replyService = replyService;
 		this.currentUserResolver = currentUserResolver;
+		this.appointmentLink = appointmentLink;
 	}
 
-	/** Only the GP may reply (SecurityConfig). */
+	/** Only the GP may reply (SecurityConfig). The booking link never comes from the request (User story nr 9 TAC3). */
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
 	public ReplyResponse reply(@PathVariable UUID questionId, @Valid @RequestBody ReplyRequest request,
 			@AuthenticationPrincipal Jwt token) {
-		return ReplyResponse.from(replyService.reply(questionId, request.text(), currentUserResolver.resolve(token), bearer(token)));
+		return ReplyResponse.from(replyService.reply(questionId, request.text(), request.asksForAppointment(),
+				currentUserResolver.resolve(token), bearer(token)), appointmentLink);
 	}
 
 	/** Everyone who may see the question, as the Intake Service decides, may read its replies. */
 	@GetMapping
 	public List<ReplyResponse> replies(@PathVariable UUID questionId, @AuthenticationPrincipal Jwt token) {
-		return replyService.replies(questionId, currentUserResolver.resolve(token), bearer(token)).stream().map(ReplyResponse::from).toList();
+		return replyService.replies(questionId, currentUserResolver.resolve(token), bearer(token)).stream()
+				.map(reply -> ReplyResponse.from(reply, appointmentLink)).toList();
 	}
 
 	/** The user's own, already checked sign-in, passed on to the Intake Service. */

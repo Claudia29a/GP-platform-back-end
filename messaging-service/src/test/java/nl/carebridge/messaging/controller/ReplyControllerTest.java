@@ -31,10 +31,11 @@ import nl.carebridge.messaging.security.CurrentUser;
 import nl.carebridge.messaging.security.CurrentUserResolver;
 import nl.carebridge.messaging.security.Role;
 import nl.carebridge.messaging.security.SecurityConfig;
+import nl.carebridge.messaging.service.AppointmentLink;
 import nl.carebridge.messaging.service.ReplyService;
 
 @WebMvcTest(ReplyController.class)
-@Import({SecurityConfig.class, CurrentUserResolver.class})
+@Import({SecurityConfig.class, CurrentUserResolver.class, AppointmentLink.class})
 @TestPropertySource(properties = {
 		"carebridge.security.gp-emails=gp@example.com",
 		"carebridge.security.assistant-emails=assistant@example.com"})
@@ -55,7 +56,7 @@ class ReplyControllerTest {
 
 	@Test
 	void theGpRepliesAndGetsTheReplyBack() throws Exception {
-		when(replyService.reply(eq(QUESTION), eq("Use the cream."), eq(GP), any()))
+		when(replyService.reply(eq(QUESTION), eq("Use the cream."), eq(false), eq(GP), any()))
 				.thenReturn(new Reply(QUESTION, "hash", "Dr. Jansen", "Use the cream.", Instant.parse("2026-11-17T10:00:00Z"), Instant.parse("2026-11-01T09:00:00Z")));
 
 		mockMvc.perform(post("/questions/" + QUESTION + "/replies").with(user("google-gp", "Dr. Jansen", "gp@example.com"))
@@ -63,7 +64,32 @@ class ReplyControllerTest {
 				.andExpect(status().isCreated())
 				.andExpect(jsonPath("$.text").value("Use the cream."))
 				.andExpect(jsonPath("$.authorName").value("Dr. Jansen"))
-				.andExpect(jsonPath("$.authorHash").doesNotExist());
+				.andExpect(jsonPath("$.authorHash").doesNotExist())
+				.andExpect(jsonPath("$.appointment").value(false))
+				.andExpect(jsonPath("$.appointmentUrl").doesNotExist());
+	}
+
+	/** User story nr 9 AC1 TAC1 TAC3: the GP asks for an appointment; the link always comes from the settings, never from the request. */
+	@Test
+	void theGpInvitesThePatientAndTheLinkComesFromTheSettings() throws Exception {
+		when(replyService.reply(eq(QUESTION), eq("Please come in."), eq(true), eq(GP), any()))
+				.thenReturn(new Reply(QUESTION, "hash", "Dr. Jansen", "Please come in.", true, Instant.parse("2026-11-17T10:00:00Z"), Instant.parse("2026-11-01T09:00:00Z")));
+
+		mockMvc.perform(post("/questions/" + QUESTION + "/replies").with(user("google-gp", "Dr. Jansen", "gp@example.com"))
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"text\": \"Please come in.\", \"appointment\": true, \"appointmentUrl\": \"https://evil.example\"}"))
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.appointment").value(true))
+				.andExpect(jsonPath("$.appointmentUrl").value("https://carebridge.test/appointment"));
+	}
+
+	/** User story nr 9 AC5: only the GP can send an invitation, just like a reply. */
+	@Test
+	void onlyTheGpMayInviteThePatient() throws Exception {
+		mockMvc.perform(post("/questions/" + QUESTION + "/replies").with(user("google-sam", "Sam", "assistant@example.com"))
+						.contentType(MediaType.APPLICATION_JSON).content("{\"text\": \"Come in\", \"appointment\": true}"))
+				.andExpect(status().isForbidden());
+		verify(replyService, never()).reply(any(), any(), org.mockito.ArgumentMatchers.anyBoolean(), any(), any());
 	}
 
 	@Test
@@ -73,7 +99,7 @@ class ReplyControllerTest {
 							.contentType(MediaType.APPLICATION_JSON).content("{\"text\": \"Hello\"}"))
 					.andExpect(status().isForbidden());
 		}
-		verify(replyService, never()).reply(any(), any(), any(), any());
+		verify(replyService, never()).reply(any(), any(), org.mockito.ArgumentMatchers.anyBoolean(), any(), any());
 	}
 
 	@Test
@@ -85,7 +111,7 @@ class ReplyControllerTest {
 		mockMvc.perform(post("/questions/" + QUESTION + "/replies").with(user("google-gp", "Dr. Jansen", "gp@example.com"))
 						.contentType(MediaType.APPLICATION_JSON).content("{\"text\": \"" + "x".repeat(2001) + "\"}"))
 				.andExpect(status().isBadRequest());
-		verify(replyService, never()).reply(any(), any(), any(), any());
+		verify(replyService, never()).reply(any(), any(), org.mockito.ArgumentMatchers.anyBoolean(), any(), any());
 	}
 
 	@Test

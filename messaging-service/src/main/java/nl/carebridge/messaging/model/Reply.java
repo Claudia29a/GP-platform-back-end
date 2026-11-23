@@ -11,6 +11,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import nl.carebridge.messaging.encryption.EncryptedText;
+import nl.carebridge.messaging.encryption.EncryptedYesNo;
 
 /** The GP's reply to a patient's question. */
 @Entity
@@ -37,6 +38,10 @@ public class Reply {
 	@Column(nullable = false)
 	private String text;
 
+	/** User story nr 9: the GP asked the patient to make an appointment. */
+	@Convert(converter = EncryptedYesNo.class)
+	private Boolean appointment = false;
+
 	@Column(nullable = false)
 	private Instant createdAt;
 
@@ -48,10 +53,16 @@ public class Reply {
 	}
 
 	public Reply(UUID intakeId, String authorHash, String authorName, String text, Instant createdAt, Instant questionSubmittedAt) {
+		this(intakeId, authorHash, authorName, text, false, createdAt, questionSubmittedAt);
+	}
+
+	public Reply(UUID intakeId, String authorHash, String authorName, String text, boolean appointment, Instant createdAt,
+			Instant questionSubmittedAt) {
 		this.intakeId = intakeId;
 		this.authorHash = authorHash;
 		this.authorName = authorName;
 		this.text = text;
+		this.appointment = appointment;
 		this.createdAt = createdAt;
 		this.questionSubmittedAt = questionSubmittedAt;
 	}
@@ -74,6 +85,10 @@ public class Reply {
 
 	public String getText() {
 		return text;
+	}
+
+	public boolean isAppointment() {
+		return Boolean.TRUE.equals(appointment);
 	}
 
 	public Instant getCreatedAt() {

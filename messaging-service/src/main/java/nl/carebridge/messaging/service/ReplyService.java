@@ -33,11 +33,11 @@ public class ReplyService {
 	}
 
 	@Transactional
-	public Reply reply(UUID questionId, String text, CurrentUser gp, String authorization) {
+	public Reply reply(UUID questionId, String text, boolean appointment, CurrentUser gp, String authorization) {
 		Question question = visibleQuestion(questionId, authorization);
-		Reply reply = repository.save(new Reply(questionId, protection.hash(gp.id()), gp.name(), text.strip(), Instant.now(),
-				question.submittedAt()));
-		notifier.replyArrived(question);
+		Reply reply = repository.save(new Reply(questionId, protection.hash(gp.id()), gp.name(), text.strip(), appointment,
+				Instant.now(), question.submittedAt()));
+		notifier.replyArrived(question, appointment);
 		return reply;
 	}
 
