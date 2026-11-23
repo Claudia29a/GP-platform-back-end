@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.time.Instant;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.UUID;
 
@@ -30,6 +31,7 @@ import org.springframework.web.server.ResponseStatusException;
 import nl.carebridge.intake.model.ComplaintArea;
 import nl.carebridge.intake.model.ComplaintDuration;
 import nl.carebridge.intake.model.Intake;
+import nl.carebridge.intake.model.Symptom;
 import nl.carebridge.intake.security.CurrentUserResolver;
 import nl.carebridge.intake.security.SecurityConfig;
 import nl.carebridge.intake.service.QueueService;
@@ -64,6 +66,20 @@ class QueueControllerTest {
 					.andExpect(jsonPath("$[0].severityScore").value(72))
 					.andExpect(jsonPath("$[0].patientName").value("Anna de Vries"));
 		}
+	}
+
+	/** Story 8 TAC1: the queue shows the ticked symptoms, in the order the form lists them. */
+	@Test
+	void theQueueShowsTheTickedSymptomsInFormOrder() throws Exception {
+		Intake intake = queued(1, 72);
+		intake.setSymptoms(EnumSet.of(Symptom.RASH_ITCHING, Symptom.FEVER));
+		when(queueService.currentQueue()).thenReturn(List.of(intake));
+
+		mockMvc.perform(get("/queue").with(signedIn("gp@example.com")))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$[0].symptoms[0]").value("FEVER"))
+				.andExpect(jsonPath("$[0].symptoms[1]").value("RASH_ITCHING"))
+				.andExpect(jsonPath("$[0].symptoms.length()").value(2));
 	}
 
 	@Test
