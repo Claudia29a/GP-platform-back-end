@@ -27,11 +27,15 @@ import org.springframework.test.web.servlet.MockMvc;
 import nl.carebridge.messaging.model.Reply;
 import nl.carebridge.messaging.security.CurrentUserResolver;
 import nl.carebridge.messaging.security.SecurityConfig;
+import nl.carebridge.messaging.appointment.AppointmentConfig;
+import nl.carebridge.messaging.appointment.AppointmentRepository;
+import nl.carebridge.messaging.config.AppConfig;
 import nl.carebridge.messaging.service.AppointmentLink;
+import nl.carebridge.messaging.service.ReplyViews;
 import nl.carebridge.messaging.service.ReplyService;
 
 @WebMvcTest(MyRepliesController.class)
-@Import({SecurityConfig.class, CurrentUserResolver.class, AppointmentLink.class})
+@Import({SecurityConfig.class, CurrentUserResolver.class, AppointmentLink.class, ReplyViews.class, AppConfig.class, AppointmentConfig.class})
 @TestPropertySource(properties = "carebridge.security.gp-emails=gp@example.com")
 @Tag("api")
 class MyRepliesControllerTest {
@@ -44,6 +48,9 @@ class MyRepliesControllerTest {
 
 	@MockitoBean
 	private ReplyService replyService;
+
+	@MockitoBean
+	private AppointmentRepository appointmentRepository;
 
 	@Test
 	void aPatientExportsTheRepliesToTheirQuestions() throws Exception {

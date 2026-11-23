@@ -18,7 +18,7 @@ import jakarta.validation.Valid;
 import nl.carebridge.messaging.dto.ReplyRequest;
 import nl.carebridge.messaging.dto.ReplyResponse;
 import nl.carebridge.messaging.security.CurrentUserResolver;
-import nl.carebridge.messaging.service.AppointmentLink;
+import nl.carebridge.messaging.service.ReplyViews;
 import nl.carebridge.messaging.service.ReplyService;
 
 @RestController
@@ -27,12 +27,12 @@ public class ReplyController {
 
 	private final ReplyService replyService;
 	private final CurrentUserResolver currentUserResolver;
-	private final AppointmentLink appointmentLink;
+	private final ReplyViews views;
 
-	public ReplyController(ReplyService replyService, CurrentUserResolver currentUserResolver, AppointmentLink appointmentLink) {
+	public ReplyController(ReplyService replyService, CurrentUserResolver currentUserResolver, ReplyViews views) {
 		this.replyService = replyService;
 		this.currentUserResolver = currentUserResolver;
-		this.appointmentLink = appointmentLink;
+		this.views = views;
 	}
 
 	/** Only the GP may reply (SecurityConfig). The booking link never comes from the request (User story nr 9 TAC3). */
@@ -40,15 +40,14 @@ public class ReplyController {
 	@ResponseStatus(HttpStatus.CREATED)
 	public ReplyResponse reply(@PathVariable UUID questionId, @Valid @RequestBody ReplyRequest request,
 			@AuthenticationPrincipal Jwt token) {
-		return ReplyResponse.from(replyService.reply(questionId, request.text(), request.asksForAppointment(),
-				currentUserResolver.resolve(token), bearer(token)), appointmentLink);
+		return views.of(replyService.reply(questionId, request.text(), request.asksForAppointment(),
+				currentUserResolver.resolve(token), bearer(token)));
 	}
 
 	/** Everyone who may see the question, as the Intake Service decides, may read its replies. */
 	@GetMapping
 	public List<ReplyResponse> replies(@PathVariable UUID questionId, @AuthenticationPrincipal Jwt token) {
-		return replyService.replies(questionId, currentUserResolver.resolve(token), bearer(token)).stream()
-				.map(reply -> ReplyResponse.from(reply, appointmentLink)).toList();
+		return views.of(replyService.replies(questionId, currentUserResolver.resolve(token), bearer(token)));
 	}
 
 	/** The user's own, already checked sign-in, passed on to the Intake Service. */

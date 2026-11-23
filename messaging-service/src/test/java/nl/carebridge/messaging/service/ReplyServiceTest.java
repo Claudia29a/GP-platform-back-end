@@ -71,20 +71,20 @@ class ReplyServiceTest {
 		assertThat(reply.getCreatedAt()).isAfterOrEqualTo(before);
 		assertThat(reply.getQuestionSubmittedAt()).isEqualTo(Instant.parse("2026-11-01T09:00:00Z"));
 		assertThat(reply.isAppointment()).isFalse();
-		verify(notifier).replyArrived(ANNAS_QUESTION, false);
+		verify(notifier).replyArrived(ANNAS_QUESTION, reply);
 	}
 
 	/** User story nr 9 TAC1 TAC4: the invitation is stored with the reply and passed to the email; a failed email loses nothing. */
 	@Test
 	void anInvitationIsStoredWithTheReplyEvenWhenTheEmailFails() {
 		when(intakeClient.find(QUESTION, "Bearer gp.token")).thenReturn(Optional.of(ANNAS_QUESTION));
-		when(notifier.replyArrived(ANNAS_QUESTION, true)).thenReturn(false);
+		when(notifier.replyArrived(any(), any())).thenReturn(false);
 
 		Reply reply = service.reply(QUESTION, "Please come and see me.", true, GP, "Bearer gp.token");
 
 		assertThat(reply.isAppointment()).isTrue();
 		verify(repository).save(reply);
-		verify(notifier).replyArrived(ANNAS_QUESTION, true);
+		verify(notifier).replyArrived(ANNAS_QUESTION, reply);
 	}
 
 	@Test
@@ -94,7 +94,7 @@ class ReplyServiceTest {
 		assertThatThrownBy(() -> service.reply(QUESTION, "Hello", true, GP, "Bearer gp.token"))
 				.isInstanceOfSatisfying(ResponseStatusException.class, ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND));
 		verify(repository, never()).save(any());
-		verify(notifier, never()).replyArrived(any(), org.mockito.ArgumentMatchers.anyBoolean());
+		verify(notifier, never()).replyArrived(any(), any());
 	}
 
 	@Test
